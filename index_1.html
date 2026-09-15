@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inversiones paralizadas</title>
+<meta name="description" content="Tablero de seguimiento de inversiones paralizadas (MEF) con lectura cruzada de obras paralizadas (Contraloría).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#edf1f5; --surface:#ffffff; --surface2:#f5f8fb; --ink:#0b2540; --ink2:#3f5368; --muted:#66788c;
+  --line:#d6dfe8; --line2:#e7edf3; --brand:#093158; --brand2:#0d3d6b; --brand-ink:#ffffff; --brand-mut:#a9c3dc;
+  --accent:#0097d9; --bar:#2167ce; --bar-dim:#b9cce6; --focus:#0097d9;
+  --mef:#0089c7; --cgr:#e07f00; --ent:#7453b4; --bmef:#7a9e12;
+  --crit:#d42a2f; --crit-bg:#fdeced; --warn-bg:#fff3e0;
+  --seq0:#e2f0fa; --seq1:#093158; --nodata:#e3e8ee;
+  --shadow:0 1px 2px rgba(9,49,88,.05),0 6px 20px rgba(9,49,88,.06);
+  --f-disp:"Archivo","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#071528; --surface:#0e2238; --surface2:#122a44; --ink:#e6eef6; --ink2:#b4c4d4; --muted:#8699ad;
+    --line:#233b56; --line2:#1a3049; --brand:#041427; --brand2:#0a2440; --brand-ink:#ffffff; --brand-mut:#8fb0cf;
+    --accent:#29aee8; --bar:#4f95ea; --bar-dim:#23456c; --focus:#29aee8;
+    --mef:#1a9ad6; --cgr:#c97808; --ent:#9a80d4; --bmef:#7f9f1a;
+    --crit:#f0585c; --crit-bg:#3a1a22; --warn-bg:#3a2a12;
+    --seq0:#15324f; --seq1:#92d2f6; --nodata:#1b2c40;
+    --shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+    --bg:#071528; --surface:#0e2238; --surface2:#122a44; --ink:#e6eef6; --ink2:#b4c4d4; --muted:#8699ad;
+    --line:#233b56; --line2:#1a3049; --brand:#041427; --brand2:#0a2440; --brand-ink:#ffffff; --brand-mut:#8fb0cf;
+    --accent:#29aee8; --bar:#4f95ea; --bar-dim:#23456c; --focus:#29aee8;
+    --mef:#1a9ad6; --cgr:#c97808; --ent:#9a80d4; --bmef:#7f9f1a;
+    --crit:#f0585c; --crit-bg:#3a1a22; --warn-bg:#3a2a12;
+    --seq0:#15324f; --seq1:#92d2f6; --nodata:#1b2c40;
+    --shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0}
+html,body{background:var(--bg)}
+body{color:var(--ink);font:14px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.num,td.r,.kv,.tabnum{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-size:.92em}
+
+/* ---------- Encabezado ---------- */
+.top{background:var(--brand);color:var(--brand-ink);padding-inline:24px;padding-block:14px 0}
+.top-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.eyebrow{font:600 11px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--brand-mut)}
+h1{font:750 30px/1.05 var(--f-disp);font-stretch:82%;letter-spacing:-.01em;margin:4px 0 2px;text-wrap:balance}
+.sub{color:var(--brand-mut);font-size:13px;max-width:70ch}
+.sub b{color:var(--brand-ink);font-weight:600}
+.top-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip-cut{border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--brand-mut);white-space:nowrap}
+.chip-cut b{color:var(--brand-ink);font-weight:600}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.35);color:var(--brand-ink);border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.tabs{display:flex;gap:2px;margin-top:14px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:transparent;border:0;color:var(--brand-mut);padding:10px 14px 11px;font:600 13.5px var(--f-body);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--brand-ink)}
+.tab[aria-selected="true"]{color:var(--brand-ink);border-bottom-color:var(--accent)}
+.msg{margin:10px 0 0;font-size:12.5px;color:var(--brand-ink);background:rgba(0,151,217,.25);border-radius:6px;padding:6px 10px}
+
+/* ---------- Estructura ---------- */
+.app{display:grid;grid-template-columns:284px minmax(0,1fr);align-items:start}
+.side{position:sticky;top:env(safe-area-inset-top,0px);max-height:100vh;overflow:auto;background:var(--surface);border-right:1px solid var(--line);padding:16px 16px 28px}
+.side-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.side-title{font:700 15px var(--f-disp);font-stretch:85%;letter-spacing:.01em}
+.link{background:none;border:0;color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer;padding:2px 0}
+.link:hover{text-decoration:underline}
+.fgroup{border-top:1px solid var(--line2);padding-top:12px;margin-top:12px;display:grid;gap:9px}
+.fgroup-t{font:600 10.5px var(--f-body);letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.fl{display:grid;gap:3px}
+.fl>label{font-size:12px;color:var(--ink2);font-weight:500}
+.dd{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:13px;cursor:pointer;min-height:32px}
+.dd:hover{border-color:var(--muted)}
+.dd.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.dd span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd svg{flex:none;opacity:.6}
+.search{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:13px}
+.search::placeholder{color:var(--muted)}
+.side-x{display:none}
+
+.pop{position:fixed;z-index:80;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 40px rgba(9,30,60,.22);width:320px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;max-height:min(460px,70vh)}
+.pop-h{padding:10px 10px 8px;border-bottom:1px solid var(--line2);display:grid;gap:8px}
+.pop-t{font-weight:600;font-size:13px}
+.pop-acts{display:flex;gap:14px}
+.pop-list{overflow:auto;padding:4px 0}
+.opt{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:start;padding:5px 12px;font-size:12.5px;cursor:pointer}
+.opt:hover{background:var(--surface2)}
+.opt input{margin:2px 0 0;accent-color:var(--accent)}
+.opt .c{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px;padding-top:1px}
+.opt.zero{color:var(--muted);font-style:italic}
+.pop-more{padding:6px 12px 10px;color:var(--muted);font-size:12px}
+
+main{padding-inline:24px;padding-block:18px 48px;min-width:0}
+.bar-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px;margin-bottom:14px}
+.actives{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+.actives .lbl{font-size:12px;color:var(--muted);margin-right:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:12px;max-width:320px}
+.pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill b{font-weight:600;color:var(--ink2)}
+.pill button{border:0;background:var(--surface2);border-radius:999px;width:20px;height:20px;cursor:pointer;line-height:1;color:var(--muted)}
+.pill button:hover{color:var(--crit)}
+.seg{display:inline-flex;max-width:100%;overflow-x:auto;scrollbar-width:none;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 10px;border-radius:5px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
+:root[data-theme="dark"] .seg button[aria-pressed="true"]{background:var(--accent);color:#041427}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{background:var(--accent);color:#041427}}
+.meas{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;font-size:12px;color:var(--muted)}
+.bt-r{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0;max-width:100%}
+.btn-filters{display:none;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:7px 12px;font-weight:600;font-size:13px;cursor:pointer}
+
+/* ---------- Paneles ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+h2{font:700 17px/1.2 var(--f-disp);font-stretch:88%;margin:0;letter-spacing:.005em;text-wrap:balance}
+h3{font:650 13px var(--f-body);margin:0}
+.note{font-size:12px;color:var(--muted);max-width:72ch}
+.note b{color:var(--ink2);font-weight:600}
+.chart{width:100%;min-height:40px}
+.chart svg{display:block;overflow:visible}
+.chart text{fill:var(--ink2);font-family:var(--f-body)}
+.hit{cursor:pointer}
+.hit:hover .bk{fill:var(--surface2)}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:16px}
+.kpi{padding:14px 18px;border-left:1px solid var(--line2);min-width:0}
+.kpi:first-child{border-left:0}
+.kl{font-size:11.5px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+.kv{font:720 26px/1.1 var(--f-disp);font-stretch:85%;margin-top:4px;white-space:nowrap}
+.kv small{font:600 13px var(--f-body);color:var(--muted);margin-left:3px}
+.ks{font-size:12px;color:var(--ink2);margin-top:3px}
+.ks .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+
+/* Dos lentes */
+.lens{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:0;padding:0;overflow:hidden}
+.lens-l,.lens-r{padding:18px 20px}
+.lens-l{border-right:1px solid var(--line2)}
+.lens-kicker{font:600 10.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;flex:none}
+.big{font:760 44px/1 var(--f-disp);font-stretch:80%;letter-spacing:-.01em;margin:8px 0 2px}
+.big small{font:600 14px var(--f-body);color:var(--muted);margin-left:6px;letter-spacing:0}
+.lens-t{font-size:13px;color:var(--ink2);max-width:52ch}
+.shares{display:grid;gap:12px;margin-top:14px}
+.share-h{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-bottom:4px;gap:8px}
+.share-h b{font-weight:650;color:var(--ink)}
+.track{height:12px;border-radius:3px;background:var(--line2);display:flex;overflow:hidden;gap:2px}
+.track i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* Concepto */
+.concept svg text{font-family:var(--f-body)}
+.crit-list{margin:0;padding:0;list-style:none;display:grid;gap:7px}
+.crit-list li{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:13px;color:var(--ink2)}
+.crit-list li::before{content:"";width:14px;height:14px;margin-top:2px;border-radius:3px;border:2px solid var(--mef);background:linear-gradient(135deg,transparent 45%,var(--mef) 45%,var(--mef) 58%,transparent 58%)}
+
+/* Tablas */
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{font-weight:600;color:var(--muted);font-size:11.5px;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+th.r,td.r{text-align:right}
+td{padding:7px 8px;border-bottom:1px solid var(--line2);vertical-align:top}
+tbody tr.row{cursor:pointer}
+tbody tr.row:hover td{background:var(--surface2)}
+th.sort{cursor:pointer;user-select:none}
+th.sort:hover{color:var(--ink)}
+th .ar{font-size:10px;margin-left:3px}
+.nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:46ch;line-height:1.35}
+.badge{display:inline-block;font:600 10.5px var(--f-body);letter-spacing:.03em;padding:1px 6px;border-radius:4px;border:1px solid;margin:0 3px 2px 0;white-space:nowrap}
+.b-cgr{color:var(--cgr);border-color:var(--cgr)}
+.b-ent{color:var(--ent);border-color:var(--ent)}
+.b-bmef{color:var(--bmef);border-color:var(--bmef)}
+.b-niv{color:var(--ink2);border-color:var(--line);background:var(--surface2)}
+.age{font-weight:600}
+.age.hot{color:var(--crit)}
+.det td{background:var(--surface2);padding:12px 14px}
+.det-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 18px;font-size:12.5px;margin-bottom:10px}
+.det-g div span{display:block;color:var(--muted);font-size:11px}
+.quote{border-left:3px solid var(--line);padding:4px 0 4px 10px;color:var(--ink2);font-size:12.5px;max-width:90ch}
+.pager{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.pager .seg button{padding:4px 10px}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.minibar{display:inline-block;height:6px;border-radius:0 2px 2px 0;background:var(--bar);vertical-align:middle;margin-right:6px}
+
+.tip{position:fixed;z-index:90;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.45;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.tip b{font-weight:650}
+.tip .tt{font-weight:650;margin-bottom:3px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.scrim{display:none}
+.foot{margin-top:22px;font-size:11.5px;color:var(--muted);max-width:100ch}
+
+@media (max-width:1180px){
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpi:nth-child(4){border-left:0}
+  .kpi:nth-child(n+4){border-top:1px solid var(--line2)}
+  .s8,.s7,.s6,.s5,.s4{grid-column:span 12}
+  .lens{grid-template-columns:1fr}
+  .lens-l{border-right:0;border-bottom:1px solid var(--line2)}
+}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:fixed;top:0;bottom:0;left:0;width:min(330px,88vw);max-height:none;z-index:70;transform:translateX(-104%);transition:transform .2s ease;padding-top:calc(16px + env(safe-area-inset-top,0px))}
+  .side.open{transform:none}
+  .scrim.open{display:block;position:fixed;inset:0;background:rgba(4,20,39,.45);z-index:60}
+  .side-x{display:inline-block}
+  .btn-filters{display:inline-block}
+  .top{padding-inline:16px}
+  main{padding-inline:16px}
+  h1{font-size:25px}
+}
+@media (max-width:560px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi:nth-child(odd){border-left:0}.kpi:nth-child(4){border-left:1px solid var(--line2)}
+  .kpi:nth-child(n+3){border-top:1px solid var(--line2)}
+  .kpi:nth-child(5){grid-column:span 2;border-left:0}
+  .big{font-size:36px}
+  .panel{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="top-row">
+    <div>
+      <div class="eyebrow">MEF · DGPMI · Dirección de Seguimiento de la Inversión Pública</div>
+      <h1>Inversiones paralizadas</h1>
+      <div class="sub">Criterio del <b>MEF</b> (inversión) con lectura cruzada de <b>obras paralizadas</b> reportadas por la Contraloría y por las propias entidades.</div>
+    </div>
+    <div class="top-actions">
+      <span class="chip-cut">Corte <b id="corte">—</b></span>
+      <span class="chip-cut"><b id="nreg">—</b> registros</span>
+      <button class="btn-ghost" id="btnXlsx" type="button">Cargar Excel</button>
+      <input type="file" id="fileXlsx" accept=".xlsx,.xls" hidden>
+    </div>
+  </div>
+  <div class="msg" id="msg" hidden></div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-t="pan" aria-selected="true">Panorama</button>
+    <button class="tab" role="tab" data-t="mc" aria-selected="false">MEF y Contraloría</button>
+    <button class="tab" role="tab" data-t="ter" aria-selected="false">Territorio</button>
+    <button class="tab" role="tab" data-t="av" aria-selected="false">Avance y antigüedad</button>
+    <button class="tab" role="tab" data-t="dx" aria-selected="false">Diagnóstico F12B</button>
+    <button class="tab" role="tab" data-t="det" aria-selected="false">Detalle</button>
+  </nav>
+</header>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="Filtros">
+    <div class="side-head">
+      <span class="side-title">Filtros</span>
+      <span><button class="link" id="clearAll" type="button">Limpiar todo</button> <button class="link side-x" id="sideClose" type="button">Cerrar</button></span>
+    </div>
+    <input class="search" id="q" type="search" placeholder="Buscar CUI o nombre de la inversión" autocomplete="off">
+    <div id="fbox"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main id="main">
+    <div class="bar-top">
+      <div class="actives" id="actives"></div>
+      <div class="bt-r">
+        <button class="btn-filters" id="openSide" type="button">Filtros</button>
+        <div class="meas"><span>Medir por</span>
+          <div class="seg" id="measSeg">
+            <button type="button" data-m="n" aria-pressed="true">N.° inversiones</button>
+            <button type="button" data-m="saldo" aria-pressed="false">Saldo por ejecutar</button>
+            <button type="button" data-m="costo" aria-pressed="false">Costo actualizado</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <!-- PANORAMA -->
+    <section data-view="pan">
+      <div class="grid">
+        <div class="panel lens s12" id="lens"></div>
+        <div class="panel s4"><div class="ph"><h2>Nivel de gobierno</h2></div><div class="chart" id="cNiv"></div></div>
+        <div class="panel s4"><div class="ph"><h2>Meses sin devengar</h2></div><div class="chart" id="cDev"></div><div class="note">Desde el último devengado registrado.</div></div>
+        <div class="panel s4"><div class="ph"><h2>Saldo por ejecutar</h2></div><div class="chart" id="cSal"></div><div class="note">Costo actualizado menos devengado acumulado.</div></div>
+        <div class="panel s12"><div class="ph"><h2>Función</h2><span class="note">Clic en una barra para filtrar</span></div><div class="chart" id="cFun"></div></div>
+      </div>
+    </section>
+
+    <!-- MEF Y CONTRALORIA -->
+    <section data-view="mc" hidden>
+      <div class="grid">
+        <div class="panel s7 concept">
+          <div class="ph"><h2>Inversión no es lo mismo que obra</h2><span class="note">Esquema ilustrativo</span></div>
+          <div id="concept"></div>
+        </div>
+        <div class="panel s5">
+          <div class="ph"><h2>Criterio MEF de inversión paralizada</h2></div>
+          <p class="note" style="margin:0 0 10px">Condiciones que cumplen todas las inversiones de esta base:</p>
+          <ul class="crit-list">
+            <li>Inversión activa, sin Formato 9 de cierre.</li>
+            <li>Avance financiero acumulado entre 10% y 90% (devengado ÷ costo actualizado).</li>
+            <li>Saldo por ejecutar positivo.</li>
+            <li>Sin certificación ni devengado en 2026.</li>
+          </ul>
+          <p class="note" style="margin:14px 0 0">La Contraloría, en cambio, reporta <b>obras</b>. Aquí se marca la inversión si <b>al menos una</b> de sus obras figura en el Anexo 1 de la CGR; el tablero cuenta inversiones, no obras.</p>
+        </div>
+        <div class="panel s12">
+          <div class="ph"><h2>¿Quién más la reporta paralizada?</h2><span class="note">Combinaciones de fuentes sobre las inversiones filtradas · clic en una columna para filtrar</span></div>
+          <div class="chart" id="cUpset"></div>
+          <div class="legend" style="margin-top:8px">
+            <span><i class="sw" style="background:var(--cgr)"></i>Contraloría: obra paralizada (Anexo 1 CGR)</span>
+            <span><i class="sw" style="background:var(--ent)"></i>Entidad: registro de obra paralizada en el Banco de Inversiones o situación F12B paralizada/suspendida</span>
+            <span><i class="sw" style="background:var(--bmef)"></i>Base MEF: BD 1138 o estado paralizado/suspendido</span>
+          </div>
+        </div>
+        <div class="panel s6"><div class="ph"><h2>Fuentes que coinciden con el criterio MEF</h2></div><div class="chart" id="cConf"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Cobertura de cada fuente por nivel de gobierno</h2></div><div class="tw" id="tCob"></div></div>
+      </div>
+    </section>
+
+    <!-- TERRITORIO -->
+    <section data-view="ter" hidden>
+      <div class="grid">
+        <div class="panel s5">
+          <div class="ph"><h2>Mapa por departamento</h2>
+            <div class="seg" id="mapSeg">
+              <button type="button" data-mm="meas" aria-pressed="true">Medida</button>
+              <button type="button" data-mm="cgr" aria-pressed="false">% con obra CGR</button>
+            </div>
+          </div>
+          <div class="chart" id="cMap"></div>
+          <div class="note">Ubicación de la inversión. Clic en un departamento para filtrar.</div>
+        </div>
+        <div class="panel s7"><div class="ph"><h2>Ranking de departamentos</h2></div><div class="tw" id="tDep" style="max-height:640px;overflow:auto"></div></div>
+        <div class="panel s12"><div class="ph"><h2>Pliegos con mayor exposición</h2><span class="note">15 primeros según la medida elegida</span></div><div class="chart" id="cPli"></div></div>
+      </div>
+    </section>
+
+    <!-- AVANCE -->
+    <section data-view="av" hidden>
+      <div class="grid">
+        <div class="panel s12">
+          <div class="ph"><h2>Avance físico según tiempo sin devengar</h2><span class="note">Clic en una celda para filtrar esa combinación</span></div>
+          <div class="chart" id="cHeat"></div>
+          <div class="note" style="margin-top:6px">La franja <b>80–100%</b> reúne inversiones casi terminadas que siguen sin movimiento: la <b>última milla</b>, donde reactivar cuesta menos.</div>
+        </div>
+        <div class="panel s6"><div class="ph"><h2>Avance financiero acumulado</h2></div><div class="chart" id="cFin"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Tipo de inversión</h2></div><div class="chart" id="cTip"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Modalidad de ejecución</h2></div><div class="chart" id="cMod"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Escenarios de avance físico</h2></div><div class="chart" id="cEsc"></div><div class="note">Escenario 1: avance físico ≥ 40%. Escenario 2: avance físico ≥ 60%.</div></div>
+      </div>
+    </section>
+
+    <!-- DIAGNOSTICO -->
+    <section data-view="dx" hidden>
+      <div class="grid">
+        <div class="panel s12"><div class="note" id="dxCov" style="max-width:none"></div></div>
+        <div class="panel s12"><div class="ph"><h2>Situación general declarada</h2></div><div class="chart" id="cSit"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Problema principal</h2></div><div class="chart" id="cProb"></div></div>
+        <div class="panel s6"><div class="ph"><h2>Acción propuesta</h2></div><div class="chart" id="cAcc"></div></div>
+      </div>
+    </section>
+
+    <!-- DETALLE -->
+    <section data-view="det" hidden>
+      <div class="panel">
+        <div class="ph"><h2 id="detTitle">Inversiones</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btnCsv" type="button">Exportar CSV</button></div>
+        </div>
+        <div class="tw" id="tDet"></div>
+        <div class="pager" id="pager"></div>
+      </div>
+    </section>
+
+    <p class="foot">Fuente: BD_Seguimiento_DSIP (hoja BD_Paralizadas), Banco de Inversiones, SIAF y Formato 12-B. Montos en soles corrientes. Una inversión puede contener varias obras; los conteos de este tablero son por inversión (CUI).</p>
+  </main>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script id="seed" type="application/json">[]</script>
+<script src="datos.js" charset="utf-8"></script>
+<script>
+"use strict";
+const GEO = {"w":420,"h":615.3,"p":{"AMAZONAS":"M118.3,232.7L115.4,233.1L114.3,232.6L112.7,233.5L110.3,232.9L109.8,227.9L108.4,223.0L106.7,221.9L105.8,218.0L104.0,215.7L101.8,213.6L99.2,212.1L99.2,211.0L95.8,205.9L93.1,202.7L90.8,202.9L90.0,200.9L88.4,198.8L86.7,194.6L87.6,190.5L90.2,187.1L91.8,183.5L93.2,182.0L93.1,180.1L90.3,177.1L87.6,175.7L86.8,172.7L87.1,170.2L88.5,169.0L89.8,166.7L88.9,165.4L90.4,159.1L88.9,157.8L89.2,155.2L86.9,154.1L88.4,152.8L88.4,150.9L89.2,149.9L89.3,147.0L88.7,144.3L89.8,143.0L91.0,137.7L92.4,135.6L91.5,132.9L92.9,131.0L94.1,130.9L94.5,128.4L96.6,126.1L97.0,124.2L96.3,122.7L97.0,121.4L97.4,118.2L98.2,117.3L98.4,115.3L99.7,112.8L102.1,113.0L103.2,116.6L105.3,115.7L104.6,111.3L111.9,102.5L112.5,100.7L113.9,99.8L116.6,99.0L117.6,105.8L117.7,113.3L118.2,115.0L123.0,120.8L123.0,123.3L121.8,125.7L124.6,128.8L125.5,131.2L125.6,134.1L125.2,136.8L124.0,141.5L124.7,145.6L124.0,149.1L121.7,150.5L121.2,154.3L117.9,157.2L117.1,158.7L117.1,161.7L118.2,163.7L118.3,165.1L116.1,167.8L116.2,169.5L117.8,170.0L120.4,172.2L118.9,173.8L120.5,175.7L120.8,178.1L120.4,180.5L118.8,180.4L118.0,181.4L118.1,184.8L119.0,187.0L117.8,189.7L118.1,194.2L121.0,195.6L121.8,198.1L121.3,199.6L123.8,200.6L125.7,202.4L127.6,200.3L129.0,202.3L130.3,201.6L132.0,204.1L134.1,205.1L136.0,205.2L136.8,208.1L139.0,210.5L137.7,213.1L136.1,213.1L134.8,211.3L133.9,211.4L134.4,214.0L132.6,216.0L132.3,217.9L130.4,220.6L129.0,220.6L130.8,223.7L125.4,223.1L123.1,220.9L120.5,223.1L118.7,222.7L118.7,225.6L118.2,227.4L119.5,230.3L118.3,232.7Z","ANCASH":"M132.9,285.3L133.9,287.3L133.7,288.8L134.8,289.3L135.3,291.1L138.0,297.4L139.1,298.3L139.8,300.1L142.2,301.1L144.1,303.2L150.4,305.7L152.3,308.1L152.5,309.7L151.5,313.3L149.6,312.1L148.7,309.9L145.6,314.5L145.0,316.9L145.5,318.8L143.6,321.4L141.8,322.9L143.9,326.3L144.4,325.0L146.7,327.0L146.9,328.5L149.6,333.4L149.2,334.3L149.8,337.6L146.2,338.7L146.5,343.9L144.6,345.0L143.2,344.3L142.6,345.7L141.1,346.1L139.8,348.3L137.6,350.3L137.1,353.3L135.1,353.0L133.1,353.8L130.3,356.9L129.7,359.2L127.0,359.8L124.3,359.2L124.0,356.4L124.3,354.3L122.2,354.7L122.1,352.4L119.0,353.6L120.8,349.2L123.6,347.5L120.5,345.5L118.5,345.5L118.2,349.2L117.0,350.9L117.8,351.9L117.9,353.9L115.8,353.8L114.1,355.3L113.3,353.0L111.6,351.3L109.9,347.3L108.5,346.3L106.9,341.4L104.9,339.7L104.5,336.2L102.3,330.5L102.8,327.8L101.3,326.5L99.6,323.3L98.2,322.0L98.1,319.8L97.1,317.0L97.7,316.1L96.1,314.9L96.2,312.6L94.5,312.2L93.4,310.5L94.2,307.9L93.4,307.2L91.3,306.9L91.7,305.0L89.6,303.7L88.9,300.1L90.7,299.3L90.8,296.4L91.6,294.1L93.1,292.8L95.4,292.3L98.5,290.1L102.1,289.6L103.9,287.7L103.1,286.2L104.5,284.4L105.7,281.9L105.7,279.9L106.4,277.9L109.7,275.0L112.5,274.1L113.7,270.1L116.6,269.8L119.6,270.0L122.0,269.2L122.3,271.1L123.4,272.7L125.0,274.0L128.2,278.8L128.9,281.6L130.2,283.7L132.9,285.3Z","APURIMAC":"M293.5,491.3L290.0,492.2L287.8,491.5L285.1,491.8L283.0,491.0L281.7,492.7L281.1,494.6L280.4,493.0L277.5,492.0L275.7,490.5L272.5,492.3L270.9,491.8L269.7,492.8L267.5,492.9L266.7,493.7L264.4,492.8L263.1,493.2L262.6,494.8L259.9,497.4L257.3,495.2L257.1,492.2L259.1,491.0L258.3,488.6L259.0,488.0L258.3,485.6L257.1,484.5L259.0,478.1L255.7,472.1L255.5,470.0L254.2,466.8L253.5,466.3L252.9,464.0L251.2,461.2L253.8,460.2L251.3,457.5L249.7,457.0L249.0,452.6L247.9,448.9L249.2,445.7L248.7,445.1L249.6,442.2L250.9,441.2L251.9,444.5L254.7,445.6L257.0,447.0L260.1,450.0L262.6,450.5L264.5,450.1L268.2,451.5L269.0,449.6L272.6,450.6L275.5,449.8L276.9,448.6L279.5,448.6L279.8,449.5L282.8,449.8L284.4,451.7L287.4,452.8L288.0,453.7L290.5,454.0L295.2,455.9L295.8,457.7L299.2,459.2L301.5,459.2L304.6,461.8L306.6,466.0L307.3,466.8L307.4,469.5L306.9,471.7L307.3,473.4L306.0,474.9L306.4,475.9L302.9,479.6L301.2,480.8L300.9,482.6L298.6,483.9L297.3,483.8L296.1,485.3L295.0,485.2L292.5,487.6L293.8,489.5L293.5,491.3Z","AREQUIPA":"M207.3,517.6L208.1,517.3L209.6,513.8L210.8,512.8L211.7,509.6L214.0,507.8L215.8,507.4L217.6,506.0L219.0,507.3L222.8,507.7L224.5,507.4L227.9,508.6L229.6,508.8L230.0,511.2L229.3,513.1L232.6,514.8L232.0,515.8L232.9,518.8L236.4,519.2L237.8,517.1L239.7,515.9L241.6,518.0L240.0,522.6L240.6,523.9L244.6,519.2L247.2,517.0L247.0,514.6L247.5,513.7L249.2,513.6L250.8,515.7L253.3,517.4L254.4,516.7L257.5,516.4L261.3,514.7L263.0,516.1L266.2,515.9L266.5,512.6L267.8,512.3L270.2,513.0L272.1,510.2L272.3,509.0L274.4,507.2L275.9,504.9L276.4,501.2L274.9,499.4L275.9,496.5L277.9,494.8L281.1,494.6L281.7,492.7L283.0,491.0L285.1,491.8L287.8,491.5L290.0,492.2L293.5,491.3L293.0,493.1L293.5,495.1L295.7,496.9L298.7,497.1L300.8,496.1L304.3,495.2L304.9,497.0L307.6,498.5L308.0,496.4L307.7,492.4L309.5,490.4L311.1,492.1L310.5,493.6L311.6,495.6L312.8,495.7L314.0,498.9L315.8,499.2L317.5,500.7L316.8,503.1L315.7,505.0L320.1,505.8L321.2,507.4L322.8,506.9L323.4,504.8L325.3,505.4L326.2,504.7L325.5,501.9L328.0,502.6L329.9,505.4L331.8,506.7L333.6,505.3L335.4,505.1L337.5,506.8L336.3,508.2L337.0,509.7L335.6,511.0L336.8,512.4L337.3,514.9L336.5,517.0L339.9,517.8L341.0,516.3L342.5,518.0L341.8,519.1L342.0,521.7L345.0,524.3L345.6,526.6L344.4,529.1L347.5,533.7L348.2,535.6L348.5,538.1L347.0,538.2L346.4,539.5L347.1,544.4L343.7,546.7L342.7,546.7L343.1,550.2L343.8,551.8L342.5,553.0L339.7,551.7L337.6,552.3L334.1,552.0L334.2,554.8L333.0,557.0L332.7,560.7L331.4,561.6L330.0,560.5L328.2,561.2L327.5,563.3L327.7,565.4L329.5,570.6L331.0,570.6L332.3,573.1L327.7,578.4L326.0,579.5L319.4,577.0L315.4,576.1L313.8,575.2L311.7,572.9L307.8,570.5L306.6,570.6L302.1,566.6L299.6,565.7L299.3,564.1L297.2,562.0L294.3,560.0L291.1,559.1L285.6,558.2L283.5,557.4L278.8,553.8L276.4,553.7L274.2,552.8L270.7,550.4L268.5,550.2L265.9,549.1L265.6,547.7L261.0,545.8L255.4,544.0L252.8,543.7L251.9,542.9L247.2,540.9L246.5,540.0L241.8,536.9L241.0,534.8L237.3,533.0L234.8,532.2L233.7,531.0L232.0,531.2L229.8,530.6L228.3,529.4L227.5,527.1L220.9,524.6L218.0,522.9L215.3,521.8L212.7,519.9L209.5,518.2L207.3,517.6ZM336.1,549.2L338.8,550.0L339.1,548.1L335.7,548.3L336.1,549.2Z","AYACUCHO":"M231.4,407.7L232.2,409.6L233.9,409.9L236.6,412.5L238.8,413.1L239.6,411.5L243.5,410.1L244.0,413.2L246.6,415.5L248.6,419.8L249.4,422.5L251.2,424.0L252.0,423.4L255.3,427.6L256.4,430.3L258.6,432.1L258.7,435.2L260.2,436.6L261.1,439.1L262.0,440.0L264.4,445.5L266.5,448.0L269.0,449.6L268.2,451.5L264.5,450.1L262.6,450.5L260.1,450.0L257.0,447.0L254.7,445.6L251.9,444.5L250.9,441.2L249.6,442.2L248.7,445.1L249.2,445.7L247.9,448.9L249.0,452.6L249.7,457.0L251.3,457.5L253.8,460.2L251.2,461.2L252.9,464.0L253.5,466.3L254.2,466.8L255.5,470.0L255.7,472.1L259.0,478.1L257.1,484.5L258.3,485.6L259.0,488.0L258.3,488.6L259.1,491.0L257.1,492.2L257.3,495.2L259.9,497.4L262.6,494.8L263.1,493.2L264.4,492.8L266.7,493.7L267.5,492.9L269.7,492.8L270.9,491.8L272.5,492.3L275.7,490.5L277.5,492.0L280.4,493.0L281.1,494.6L277.9,494.8L275.9,496.5L274.9,499.4L276.4,501.2L275.9,504.9L274.4,507.2L272.3,509.0L272.1,510.2L270.2,513.0L267.8,512.3L266.5,512.6L266.2,515.9L263.0,516.1L261.3,514.7L257.5,516.4L254.4,516.7L253.3,517.4L250.8,515.7L249.2,513.6L247.5,513.7L247.0,514.6L247.2,517.0L244.6,519.2L240.6,523.9L240.0,522.6L241.6,518.0L239.7,515.9L237.8,517.1L236.4,519.2L232.9,518.8L232.0,515.8L232.6,514.8L229.3,513.1L230.0,511.2L229.6,508.8L227.9,508.6L224.5,507.4L222.8,507.7L219.0,507.3L217.6,506.0L220.8,504.2L220.9,499.6L219.9,497.3L218.1,497.5L217.8,495.0L216.2,494.4L214.8,492.9L214.6,489.7L213.2,487.4L211.1,489.5L207.7,490.0L207.4,486.8L206.5,485.4L206.4,483.7L205.1,483.0L206.6,479.6L208.4,478.4L206.7,476.3L207.8,473.5L208.7,471.5L211.6,472.3L215.0,471.6L217.3,472.1L216.9,469.7L217.4,468.4L216.8,466.7L217.7,463.4L217.2,462.5L217.9,460.2L217.0,457.3L217.3,455.9L216.4,453.9L214.3,451.7L213.0,451.2L213.1,448.8L214.1,447.6L217.5,447.0L219.7,447.7L221.5,444.7L223.9,441.7L224.8,442.2L227.7,441.9L228.9,440.9L229.3,437.8L230.1,436.5L231.4,436.4L232.6,437.5L233.9,436.4L233.0,433.3L232.0,433.1L231.9,430.0L233.2,429.6L233.3,427.4L231.3,425.8L232.0,424.8L231.6,423.2L229.1,418.4L228.9,416.9L226.2,417.0L223.6,413.1L224.6,411.6L230.1,410.9L230.0,408.4L231.4,407.7ZM251.5,511.6L251.5,513.1L253.3,513.9L254.8,512.5L251.5,511.6Z","CAJAMARCA":"M66.5,234.8L67.3,233.9L66.8,230.6L68.4,229.2L73.1,226.4L72.5,223.9L70.1,223.7L69.6,222.9L67.3,223.0L65.0,218.8L63.8,218.5L62.9,216.4L63.1,215.5L62.1,213.6L63.1,210.7L65.4,210.5L66.5,209.1L68.8,207.9L68.1,205.2L69.7,202.2L68.4,200.4L63.3,199.3L66.1,196.7L64.2,193.3L63.9,191.9L64.7,187.1L64.0,184.7L68.1,184.1L67.3,182.1L66.3,177.3L65.3,176.4L65.6,174.5L64.6,173.1L67.4,170.4L69.0,166.8L70.2,165.5L74.7,165.7L76.8,167.2L78.0,163.2L80.6,163.1L80.7,160.3L80.0,159.7L81.0,157.1L82.5,155.1L83.7,154.5L86.9,154.1L89.2,155.2L88.9,157.8L90.4,159.1L88.9,165.4L89.8,166.7L88.5,169.0L87.1,170.2L86.8,172.7L87.6,175.7L90.3,177.1L93.1,180.1L93.2,182.0L91.8,183.5L90.2,187.1L87.6,190.5L86.7,194.6L88.4,198.8L90.0,200.9L90.8,202.9L93.1,202.7L95.8,205.9L99.2,211.0L99.2,212.1L101.8,213.6L104.0,215.7L105.8,218.0L106.7,221.9L108.4,223.0L109.8,227.9L110.3,232.9L113.7,239.5L114.2,241.3L115.9,244.3L116.5,247.1L117.8,248.0L118.9,249.6L115.5,251.2L114.6,253.6L110.3,256.7L107.6,257.3L106.4,255.9L102.8,259.4L101.3,259.2L100.3,257.3L99.4,257.4L97.6,255.1L98.5,253.2L98.4,250.7L96.5,250.2L94.0,252.6L89.6,252.3L88.8,251.7L89.4,248.9L88.3,247.8L85.1,247.4L82.4,248.6L80.9,250.2L80.6,252.0L79.0,254.0L78.4,256.0L77.4,256.1L75.8,254.1L75.0,249.8L72.1,248.7L70.9,247.2L68.7,246.7L67.4,245.6L65.6,245.2L67.8,243.1L68.3,240.4L67.0,238.9L66.5,234.8Z","CALLAO":"M137.2,396.1L139.3,395.9L140.5,398.6L139.5,400.5L140.7,403.1L139.7,404.6L138.4,404.2L139.0,401.1L138.2,397.7L137.2,396.1Z","CUSCO":"M293.5,491.3L293.8,489.5L292.5,487.6L295.0,485.2L296.1,485.3L297.3,483.8L298.6,483.9L300.9,482.6L301.2,480.8L302.9,479.6L306.4,475.9L306.0,474.9L307.3,473.4L306.9,471.7L307.4,469.5L307.3,466.8L306.6,466.0L304.6,461.8L301.5,459.2L299.2,459.2L295.8,457.7L295.2,455.9L290.5,454.0L288.0,453.7L287.4,452.8L284.4,451.7L282.8,449.8L279.8,449.5L279.5,448.6L276.9,448.6L275.5,449.8L272.6,450.6L269.0,449.6L266.5,448.0L264.4,445.5L262.0,440.0L261.1,439.1L260.2,436.6L258.7,435.2L258.6,432.1L256.4,430.3L255.3,427.6L252.0,423.4L251.2,424.0L249.4,422.5L248.6,419.8L246.6,415.5L244.0,413.2L243.5,410.1L245.4,409.5L248.0,410.0L249.4,409.3L251.6,410.9L252.5,410.9L254.9,414.6L256.4,414.6L257.0,411.2L260.4,409.3L261.2,407.3L264.0,406.5L262.5,404.1L262.8,402.6L261.5,401.6L261.4,400.0L259.7,397.8L256.9,396.4L257.0,393.0L255.8,390.5L257.4,388.2L261.1,386.2L260.1,384.1L262.1,381.2L265.0,378.8L267.5,378.8L269.3,378.1L271.4,378.2L275.1,377.2L276.3,375.0L277.0,377.2L278.0,377.8L277.6,379.4L279.4,380.3L282.8,381.2L284.7,380.0L285.7,381.1L288.9,382.7L291.4,382.9L293.2,381.3L296.6,379.5L298.9,378.6L301.2,379.9L300.9,381.2L299.4,382.9L298.7,388.3L294.9,392.1L296.8,394.7L296.2,396.1L298.1,397.1L297.6,398.3L297.9,400.8L299.7,401.1L300.5,402.1L300.2,403.7L303.4,403.9L306.0,404.8L306.2,406.7L305.6,409.9L308.0,410.8L310.0,412.7L309.9,415.3L307.1,416.7L306.8,419.1L308.1,419.5L309.7,421.4L310.6,423.9L309.8,424.9L313.1,426.5L315.4,426.9L317.5,428.7L319.2,426.7L322.4,425.4L324.0,425.7L327.3,429.6L328.5,432.0L330.5,431.6L332.3,433.5L334.4,434.6L336.5,434.9L336.7,438.7L338.2,443.4L340.9,444.5L343.1,441.2L344.9,439.2L347.5,437.8L350.3,439.1L353.5,438.5L355.9,439.0L357.2,440.6L360.0,440.9L362.5,442.0L361.5,444.2L362.4,446.1L362.2,448.0L360.7,448.7L360.4,450.6L357.7,453.2L357.5,454.8L355.0,456.0L353.7,457.5L351.7,457.8L351.1,460.3L352.2,462.5L351.5,463.4L349.9,462.9L347.9,464.4L347.8,467.0L346.8,470.0L349.0,471.5L348.6,473.3L346.7,474.8L345.6,476.8L346.2,478.2L345.2,480.1L343.5,481.3L342.7,482.8L343.5,484.1L342.4,486.1L342.2,488.3L338.5,491.5L340.5,494.5L341.8,494.0L343.1,494.8L342.5,497.0L342.8,500.9L342.1,501.8L343.1,508.6L343.5,510.0L342.8,511.1L343.9,512.4L341.9,514.3L341.0,516.3L339.9,517.8L336.5,517.0L337.3,514.9L336.8,512.4L335.6,511.0L337.0,509.7L336.3,508.2L337.5,506.8L335.4,505.1L333.6,505.3L331.8,506.7L329.9,505.4L328.0,502.6L325.5,501.9L326.2,504.7L325.3,505.4L323.4,504.8L322.8,506.9L321.2,507.4L320.1,505.8L315.7,505.0L316.8,503.1L317.5,500.7L315.8,499.2L314.0,498.9L312.8,495.7L311.6,495.6L310.5,493.6L311.1,492.1L309.5,490.4L307.7,492.4L308.0,496.4L307.6,498.5L304.9,497.0L304.3,495.2L300.8,496.1L298.7,497.1L295.7,496.9L293.5,495.1L293.0,493.1L293.5,491.3ZM334.2,485.3L336.6,486.7L337.1,485.9L334.0,483.9L334.2,485.3Z","HUANCAVELICA":"M207.8,473.5L206.1,470.2L204.2,471.5L201.1,470.6L202.0,469.3L198.7,469.6L195.3,466.2L191.6,465.4L191.0,463.8L192.3,463.0L191.8,461.8L192.6,458.9L193.6,457.4L192.7,456.2L193.9,453.2L194.3,450.0L193.0,447.8L191.9,449.1L190.3,449.0L186.9,450.3L186.1,449.5L183.0,449.0L183.5,447.0L186.3,445.2L186.3,441.8L186.7,440.5L185.9,439.2L186.7,438.0L188.9,437.4L189.4,434.3L188.6,432.7L189.4,431.0L192.1,429.5L192.9,428.0L190.6,425.9L191.4,424.8L190.5,423.5L191.9,422.8L193.4,423.7L195.9,423.0L197.7,420.0L200.5,417.6L202.6,417.5L202.6,415.2L205.1,413.4L207.3,409.8L208.1,407.6L207.2,403.9L208.2,402.3L212.0,402.7L215.1,404.3L218.0,403.3L219.1,403.9L221.0,401.8L222.2,401.4L227.8,403.0L228.9,405.1L231.2,406.9L231.4,407.7L230.0,408.4L230.1,410.9L224.6,411.6L223.6,413.1L226.2,417.0L228.9,416.9L229.1,418.4L231.6,423.2L232.0,424.8L231.3,425.8L233.3,427.4L233.2,429.6L231.9,430.0L232.0,433.1L233.0,433.3L233.9,436.4L232.6,437.5L231.4,436.4L230.1,436.5L229.3,437.8L228.9,440.9L227.7,441.9L224.8,442.2L223.9,441.7L221.5,444.7L219.7,447.7L217.5,447.0L214.1,447.6L213.1,448.8L213.0,451.2L214.3,451.7L216.4,453.9L217.3,455.9L217.0,457.3L217.9,460.2L217.2,462.5L217.7,463.4L216.8,466.7L217.4,468.4L216.9,469.7L217.3,472.1L215.0,471.6L211.6,472.3L208.7,471.5L207.8,473.5Z","HUANUCO":"M132.9,285.3L134.7,283.2L136.7,283.8L139.0,282.3L140.5,283.7L140.4,284.9L141.8,286.1L146.2,286.7L148.5,285.9L149.0,284.9L153.5,285.4L155.9,284.7L158.6,284.6L161.1,286.7L161.9,283.9L162.8,282.4L165.5,281.9L165.8,285.1L167.3,286.9L167.7,289.5L168.9,294.3L171.1,292.9L172.7,289.6L172.2,283.2L173.7,278.8L177.1,278.3L178.4,281.0L177.7,282.7L177.7,287.4L177.2,288.9L178.4,291.6L179.2,293.7L179.3,297.0L180.7,300.1L180.7,301.8L183.0,305.2L183.4,307.4L185.5,310.3L187.5,314.4L191.1,314.6L193.3,313.8L194.7,311.1L198.8,311.1L200.3,311.5L201.0,310.2L202.8,308.8L202.7,306.5L201.8,304.7L203.7,303.8L204.7,302.4L205.0,300.2L206.6,298.5L208.2,297.9L210.4,299.5L211.9,298.8L211.7,296.3L214.7,292.9L214.8,289.7L216.4,288.7L222.4,285.9L224.7,287.1L225.4,292.7L225.2,293.6L222.7,295.1L221.5,298.4L221.3,302.7L220.4,304.3L221.6,305.1L221.7,306.5L223.3,311.3L220.5,314.4L220.4,315.5L218.7,316.9L218.0,318.7L218.5,320.4L216.1,324.2L216.2,325.6L214.7,326.3L213.1,325.9L211.6,326.7L209.7,329.3L207.7,328.6L206.1,329.5L204.4,329.3L201.7,327.5L199.7,327.4L200.6,329.7L200.2,330.3L197.5,330.4L196.6,331.8L193.9,333.8L191.5,334.2L190.1,333.1L189.5,335.5L187.3,336.3L186.4,339.2L186.4,341.7L183.7,343.2L181.9,343.4L181.3,344.8L179.1,346.7L179.1,348.4L177.4,350.8L174.7,350.3L174.0,349.3L172.2,349.1L169.2,347.3L167.6,347.2L166.3,348.3L165.4,344.3L160.9,346.1L160.3,347.4L155.1,348.7L153.5,349.6L152.5,351.0L151.1,350.3L149.8,347.9L148.2,347.4L146.5,343.9L146.2,338.7L149.8,337.6L149.2,334.3L149.6,333.4L146.9,328.5L146.7,327.0L144.4,325.0L143.9,326.3L141.8,322.9L143.6,321.4L145.5,318.8L145.0,316.9L145.6,314.5L148.7,309.9L149.6,312.1L151.5,313.3L152.5,309.7L152.3,308.1L150.4,305.7L144.1,303.2L142.2,301.1L139.8,300.1L139.1,298.3L138.0,297.4L135.3,291.1L134.8,289.3L133.7,288.8L133.9,287.3L132.9,285.3Z","ICA":"M217.6,506.0L215.8,507.4L214.0,507.8L211.7,509.6L210.8,512.8L209.6,513.8L208.1,517.3L207.3,517.6L207.0,516.9L203.6,515.0L204.1,513.0L202.1,512.0L202.5,510.5L200.6,508.4L197.5,507.4L195.0,502.7L193.1,501.6L193.1,500.0L190.7,498.3L187.2,496.6L183.7,494.3L181.4,493.2L179.3,491.3L178.8,488.2L177.4,486.8L177.5,484.9L175.3,483.4L174.4,482.1L172.2,481.0L172.9,478.9L171.8,476.8L168.9,474.1L167.0,474.5L167.7,469.6L167.2,466.4L165.6,466.6L163.4,466.0L164.3,462.7L166.8,462.2L166.6,463.7L167.9,464.6L170.0,457.0L170.4,454.5L170.2,449.8L168.5,446.4L169.7,445.8L171.4,442.0L176.2,438.4L178.6,435.2L183.1,437.5L184.5,436.1L185.7,436.8L187.5,436.3L189.4,434.3L188.9,437.4L186.7,438.0L185.9,439.2L186.7,440.5L186.3,441.8L186.3,445.2L183.5,447.0L183.0,449.0L186.1,449.5L186.9,450.3L190.3,449.0L191.9,449.1L193.0,447.8L194.3,450.0L193.9,453.2L192.7,456.2L193.6,457.4L192.6,458.9L191.8,461.8L192.3,463.0L191.0,463.8L191.6,465.4L195.3,466.2L198.7,469.6L202.0,469.3L201.1,470.6L204.2,471.5L206.1,470.2L207.8,473.5L206.7,476.3L208.4,478.4L206.6,479.6L205.1,483.0L206.4,483.7L206.5,485.4L207.4,486.8L207.7,490.0L211.1,489.5L213.2,487.4L214.6,489.7L214.8,492.9L216.2,494.4L217.8,495.0L218.1,497.5L219.9,497.3L220.9,499.6L220.8,504.2L217.6,506.0Z","JUNIN":"M223.9,365.4L226.0,366.6L226.3,368.2L228.1,368.5L230.5,370.2L234.4,368.9L236.2,369.0L239.8,367.9L242.7,368.1L243.6,370.7L243.6,372.4L247.4,373.2L247.3,369.6L247.7,366.8L248.7,365.7L249.0,361.6L250.9,359.4L252.9,360.7L255.8,363.2L257.4,363.6L257.1,366.9L258.0,369.9L260.0,370.5L261.1,375.9L260.7,378.5L259.9,379.0L262.1,381.2L260.1,384.1L261.1,386.2L257.4,388.2L255.8,390.5L257.0,393.0L256.9,396.4L259.7,397.8L261.4,400.0L261.5,401.6L262.8,402.6L262.5,404.1L264.0,406.5L261.2,407.3L260.4,409.3L257.0,411.2L256.4,414.6L254.9,414.6L252.5,410.9L251.6,410.9L249.4,409.3L248.0,410.0L245.4,409.5L243.5,410.1L239.6,411.5L238.8,413.1L236.6,412.5L233.9,409.9L232.2,409.6L231.4,407.7L231.2,406.9L228.9,405.1L227.8,403.0L222.2,401.4L221.0,401.8L219.1,403.9L218.0,403.3L215.1,404.3L212.0,402.7L208.2,402.3L207.2,403.9L208.1,407.6L207.3,409.8L205.1,413.4L202.6,415.2L202.6,417.5L200.5,417.6L197.7,420.0L195.9,423.0L193.4,423.7L191.9,422.8L190.5,423.5L190.8,420.9L191.9,419.3L191.2,417.3L191.0,413.2L187.7,408.4L188.6,405.7L186.7,403.3L184.3,403.9L182.4,402.4L179.0,401.4L176.1,401.4L174.8,400.2L174.9,398.3L172.0,394.5L169.9,392.8L169.8,390.5L170.4,388.2L169.2,387.2L167.1,388.2L164.3,385.3L164.0,383.2L162.3,379.9L160.7,378.2L160.3,374.7L159.4,372.2L160.3,371.3L163.4,370.9L166.0,371.4L166.4,372.8L167.9,373.3L168.6,370.4L167.3,365.7L168.0,365.7L168.4,366.1L168.3,366.2L168.7,366.9L170.7,369.8L172.8,372.0L175.6,371.2L176.2,369.9L174.2,367.5L172.5,367.1L173.5,365.2L175.1,364.3L176.8,362.3L179.1,364.4L181.3,363.9L181.9,364.5L183.7,362.4L185.4,361.9L186.7,362.7L190.2,362.0L190.7,359.8L193.5,360.1L194.5,361.1L193.8,363.3L194.3,365.0L196.2,363.5L199.2,363.7L201.0,362.4L201.6,360.5L203.4,358.8L205.7,359.2L207.2,357.1L209.2,357.5L210.4,359.8L211.2,359.3L213.2,360.6L215.3,360.9L216.6,362.6L217.7,362.4L219.4,363.5L221.3,363.8L222.5,365.1L223.9,365.4Z","LA LIBERTAD":"M88.9,300.1L88.7,298.2L85.1,293.5L85.9,291.4L85.6,288.8L84.5,286.6L79.3,282.2L80.6,280.2L78.6,277.4L77.6,274.6L73.3,270.8L73.2,269.9L67.0,265.0L64.7,262.2L64.1,260.4L61.7,257.8L62.7,257.2L62.3,255.6L59.2,251.4L57.7,247.8L58.3,247.0L56.9,242.9L54.3,239.9L60.7,233.0L62.1,232.1L63.9,232.5L66.5,234.8L67.0,238.9L68.3,240.4L67.8,243.1L65.6,245.2L67.4,245.6L68.7,246.7L70.9,247.2L72.1,248.7L75.0,249.8L75.8,254.1L77.4,256.1L78.4,256.0L79.0,254.0L80.6,252.0L80.9,250.2L82.4,248.6L85.1,247.4L88.3,247.8L89.4,248.9L88.8,251.7L89.6,252.3L94.0,252.6L96.5,250.2L98.4,250.7L98.5,253.2L97.6,255.1L99.4,257.4L100.3,257.3L101.3,259.2L102.8,259.4L106.4,255.9L107.6,257.3L110.3,256.7L114.6,253.6L115.5,251.2L118.9,249.6L117.8,248.0L116.5,247.1L115.9,244.3L114.2,241.3L113.7,239.5L110.3,232.9L112.7,233.5L114.3,232.6L115.4,233.1L118.3,232.7L119.8,237.5L122.1,238.9L123.4,241.3L122.0,242.0L122.6,244.7L122.4,245.9L123.2,248.5L126.0,250.9L125.6,253.5L127.4,257.4L125.9,259.4L127.5,260.9L128.8,261.2L130.0,264.2L130.9,264.4L129.9,267.2L130.7,269.4L133.7,269.5L135.5,268.0L138.4,268.6L139.5,268.4L142.8,269.3L143.9,271.2L146.5,273.2L145.9,274.8L146.7,277.0L146.3,278.5L144.2,280.8L140.6,281.2L139.0,282.3L136.7,283.8L134.7,283.2L132.9,285.3L130.2,283.7L128.9,281.6L128.2,278.8L125.0,274.0L123.4,272.7L122.3,271.1L122.0,269.2L119.6,270.0L116.6,269.8L113.7,270.1L112.5,274.1L109.7,275.0L106.4,277.9L105.7,279.9L105.7,281.9L104.5,284.4L103.1,286.2L103.9,287.7L102.1,289.6L98.5,290.1L95.4,292.3L93.1,292.8L91.6,294.1L90.8,296.4L90.7,299.3L88.9,300.1Z","LAMBAYEQUE":"M23.2,212.8L31.5,200.5L33.2,198.5L37.4,196.7L39.7,196.6L44.2,192.0L45.0,186.3L45.8,184.0L47.2,183.2L48.9,184.6L48.5,185.6L49.5,188.4L51.1,188.4L53.4,191.5L52.7,194.9L54.5,195.1L56.2,194.6L56.4,196.5L57.3,198.3L60.6,197.5L63.3,199.3L68.4,200.4L69.7,202.2L68.1,205.2L68.8,207.9L66.5,209.1L65.4,210.5L63.1,210.7L62.1,213.6L63.1,215.5L62.9,216.4L63.8,218.5L65.0,218.8L67.3,223.0L69.6,222.9L70.1,223.7L72.5,223.9L73.1,226.4L68.4,229.2L66.8,230.6L67.3,233.9L66.5,234.8L63.9,232.5L62.1,232.1L60.7,233.0L54.3,239.9L54.5,238.1L52.6,235.8L46.3,229.6L46.0,228.1L44.5,225.4L41.5,223.0L38.1,220.7L34.4,218.6L23.2,212.8Z","LIMA":"M146.5,343.9L148.2,347.4L149.8,347.9L151.1,350.3L152.5,351.0L153.3,354.7L154.8,356.4L154.7,357.8L155.6,361.1L157.3,363.8L157.8,367.2L157.3,368.7L159.0,369.5L160.3,371.3L159.4,372.2L160.3,374.7L160.7,378.2L162.3,379.9L164.0,383.2L164.3,385.3L167.1,388.2L169.2,387.2L170.4,388.2L169.8,390.5L169.9,392.8L172.0,394.5L174.9,398.3L174.8,400.2L176.1,401.4L179.0,401.4L182.4,402.4L184.3,403.9L186.7,403.3L188.6,405.7L187.7,408.4L191.0,413.2L191.2,417.3L191.9,419.3L190.8,420.9L190.5,423.5L191.4,424.8L190.6,425.9L192.9,428.0L192.1,429.5L189.4,431.0L188.6,432.7L189.4,434.3L187.5,436.3L185.7,436.8L184.5,436.1L183.1,437.5L178.6,435.2L176.2,438.4L171.4,442.0L169.7,445.8L168.5,446.4L162.2,438.5L160.3,436.6L159.5,433.9L159.8,433.0L159.0,430.1L155.5,426.9L154.3,423.0L151.8,420.0L150.1,419.0L150.9,416.6L150.8,415.1L148.9,412.6L145.6,410.3L142.2,408.8L142.4,406.4L139.7,404.6L140.7,403.1L139.5,400.5L140.5,398.6L139.3,395.9L137.2,396.1L137.9,393.1L136.3,389.8L134.2,388.0L133.3,385.5L131.1,383.5L126.9,381.0L122.1,378.5L122.2,375.5L123.8,374.4L122.4,370.1L121.5,368.7L121.6,366.5L118.6,362.2L118.8,361.4L116.6,358.2L114.1,355.3L115.8,353.8L117.9,353.9L117.8,351.9L117.0,350.9L118.2,349.2L118.5,345.5L120.5,345.5L123.6,347.5L120.8,349.2L119.0,353.6L122.1,352.4L122.2,354.7L124.3,354.3L124.0,356.4L124.3,359.2L127.0,359.8L129.7,359.2L130.3,356.9L133.1,353.8L135.1,353.0L137.1,353.3L137.6,350.3L139.8,348.3L141.1,346.1L142.6,345.7L143.2,344.3L144.6,345.0L146.5,343.9Z","LORETO":"M243.4,251.9L241.7,250.2L241.5,249.0L238.3,247.2L236.9,246.0L234.3,245.5L232.4,245.7L227.5,244.0L226.2,242.8L225.1,243.8L223.6,247.7L222.4,248.5L221.5,250.7L221.5,252.8L223.9,256.4L223.5,257.4L224.4,259.1L225.8,260.0L224.0,261.3L222.0,265.5L218.7,266.9L217.3,268.7L213.1,270.2L210.3,266.5L208.6,265.8L205.0,266.8L203.6,268.1L202.6,271.8L201.6,272.7L200.2,271.7L197.2,272.2L195.5,273.1L194.1,276.0L193.0,277.2L193.0,279.2L195.3,280.7L195.1,282.2L191.6,283.2L189.9,281.3L188.2,281.3L186.3,282.3L186.0,283.9L183.9,284.1L183.9,285.9L182.1,289.4L180.2,289.7L178.4,291.6L177.2,288.9L177.7,287.4L177.7,282.7L178.4,281.0L177.1,278.3L178.7,278.0L179.4,276.1L178.5,273.8L178.2,270.8L179.3,269.9L181.7,269.5L182.2,266.6L181.2,264.9L177.7,266.2L175.1,260.5L173.2,258.2L173.5,252.7L171.1,250.5L169.5,247.5L170.1,245.1L169.5,244.3L171.0,242.9L171.8,240.8L174.6,239.3L176.2,236.5L176.2,233.8L174.9,232.0L176.2,230.3L174.9,227.6L177.8,226.8L181.7,227.1L184.2,229.0L186.6,229.5L187.6,228.1L188.7,228.6L192.8,226.7L193.1,226.1L193.1,221.8L192.8,216.8L191.5,212.0L193.5,209.3L193.6,207.1L192.3,205.9L192.1,203.5L190.8,200.4L189.4,201.1L188.9,203.1L187.2,203.5L186.0,205.0L182.7,203.7L182.1,205.0L178.9,204.9L177.7,203.5L175.5,203.7L172.4,206.2L169.2,205.9L167.5,203.8L166.0,203.2L164.2,199.4L162.9,198.6L158.4,201.1L155.4,200.4L151.8,200.4L151.8,198.8L149.5,195.7L148.9,191.8L147.1,191.9L144.7,190.4L143.6,189.1L142.0,189.4L135.7,186.7L132.2,187.0L131.2,185.8L129.9,186.5L128.1,186.3L126.3,182.4L124.9,181.0L124.2,182.2L121.2,180.5L120.4,180.5L120.8,178.1L120.5,175.7L118.9,173.8L120.4,172.2L117.8,170.0L116.2,169.5L116.1,167.8L118.3,165.1L118.2,163.7L117.1,161.7L117.1,158.7L117.9,157.2L121.2,154.3L121.7,150.5L124.0,149.1L124.7,145.6L124.0,141.5L125.2,136.8L125.6,134.1L125.5,131.2L124.6,128.8L121.8,125.7L123.0,123.3L123.0,120.8L118.2,115.0L117.7,113.3L117.6,105.8L116.6,99.0L138.2,91.7L155.6,85.7L175.1,70.2L190.5,50.7L191.9,48.5L196.3,32.3L196.9,29.9L199.0,31.5L202.5,31.3L202.4,27.8L200.7,23.4L201.9,20.5L202.2,17.2L200.5,15.4L199.3,15.3L196.9,13.3L194.4,9.4L193.7,6.7L192.1,4.8L189.5,5.1L189.5,2.5L191.0,3.1L193.0,2.7L196.3,4.4L199.6,3.9L201.1,3.0L203.6,0.0L207.1,1.5L209.2,3.6L210.6,3.9L212.0,6.0L214.7,6.6L215.9,5.2L217.6,6.3L218.6,8.5L218.6,10.1L220.7,11.3L223.8,12.0L225.3,14.3L228.9,15.7L230.7,19.2L230.5,20.6L234.0,27.2L233.6,28.9L234.0,31.7L235.4,32.6L237.3,32.5L239.7,33.9L241.3,33.8L242.4,35.2L244.6,36.7L245.7,36.3L247.6,40.1L253.4,40.3L255.4,41.1L255.7,42.9L258.4,46.9L258.5,47.9L260.1,49.8L259.4,53.1L258.2,55.4L259.4,56.9L260.8,57.0L261.9,58.9L263.3,58.3L265.8,58.6L269.2,58.0L271.0,61.1L272.3,61.6L272.1,66.4L272.9,67.3L271.6,72.1L270.4,73.5L272.0,75.5L273.7,76.5L273.8,77.8L277.2,77.4L277.4,79.1L279.7,80.5L280.9,80.5L283.6,78.9L286.2,79.6L289.4,78.2L291.9,80.2L293.7,80.1L296.6,81.2L296.9,82.4L299.5,81.7L300.6,80.4L302.3,80.9L304.2,79.9L307.5,77.2L308.8,78.3L310.4,77.9L311.6,76.2L312.9,76.4L314.7,72.3L315.8,72.8L317.7,70.7L318.8,73.5L320.3,72.7L322.3,73.7L326.9,75.0L330.0,79.0L331.8,78.5L332.2,77.4L334.6,77.2L336.0,78.7L337.8,75.5L340.5,75.0L342.3,72.9L344.6,74.4L346.3,73.3L347.7,75.7L349.6,75.7L350.5,76.9L353.3,77.8L354.6,79.3L354.3,81.6L355.5,82.2L359.7,81.2L360.9,83.4L363.5,82.3L364.3,85.3L366.3,84.3L367.8,85.2L368.1,87.5L372.0,88.0L373.2,88.9L373.4,91.4L370.8,95.8L358.8,115.1L351.8,126.1L354.9,127.7L356.4,127.4L359.0,128.9L363.9,126.4L366.3,127.6L367.3,129.4L368.8,130.1L369.6,132.1L371.9,135.0L373.4,136.0L374.3,137.6L376.9,140.1L377.1,142.5L376.3,144.3L374.8,145.0L373.1,143.9L372.8,142.7L370.2,142.4L370.3,143.8L369.4,145.0L367.3,142.7L366.2,140.8L365.7,138.5L361.1,137.5L360.0,139.0L358.0,137.7L356.9,138.8L355.0,139.6L354.0,137.4L352.4,139.4L350.7,138.5L348.3,139.7L348.0,141.4L346.8,141.7L346.4,143.9L344.0,145.7L339.8,146.3L338.8,145.7L336.1,146.5L335.2,145.8L333.6,147.5L331.0,147.9L329.4,147.4L328.4,148.7L326.4,147.7L324.5,148.6L323.4,150.2L321.9,150.9L320.8,150.0L318.8,150.2L317.8,149.3L313.6,150.8L311.8,152.0L309.7,154.2L307.9,154.5L305.7,156.8L303.0,158.1L300.2,159.9L298.3,160.0L296.6,161.2L295.4,163.4L291.9,164.4L289.1,166.7L289.0,167.7L287.4,168.8L285.0,168.5L283.9,169.8L279.7,172.3L280.5,174.6L280.4,176.5L279.4,177.6L278.5,180.4L277.4,182.3L277.7,185.1L276.9,187.3L277.3,188.8L274.1,193.5L271.0,195.9L269.8,198.6L269.8,200.4L268.6,201.0L267.7,204.8L270.8,211.3L272.3,215.3L271.1,217.6L269.4,219.4L265.1,220.4L263.0,221.9L258.7,223.0L257.4,224.5L256.0,224.9L252.4,228.5L250.8,231.9L250.7,236.0L249.5,237.7L252.2,241.6L253.0,244.0L252.0,245.4L248.9,245.3L247.4,246.9L245.4,246.1L244.8,247.1L245.8,249.9L244.7,251.8L243.4,251.9Z","MADRE DE DIOS":"M362.5,442.0L360.0,440.9L357.2,440.6L355.9,439.0L353.5,438.5L350.3,439.1L347.5,437.8L344.9,439.2L343.1,441.2L340.9,444.5L338.2,443.4L336.7,438.7L336.5,434.9L334.4,434.6L332.3,433.5L330.5,431.6L328.5,432.0L327.3,429.6L324.0,425.7L322.4,425.4L319.2,426.7L317.5,428.7L315.4,426.9L313.1,426.5L309.8,424.9L310.6,423.9L309.7,421.4L308.1,419.5L306.8,419.1L307.1,416.7L309.9,415.3L310.0,412.7L308.0,410.8L305.6,409.9L306.2,406.7L306.0,404.8L303.4,403.9L300.2,403.7L300.5,402.1L299.7,401.1L297.9,400.8L297.6,398.3L298.1,397.1L296.2,396.1L296.8,394.7L294.9,392.1L298.7,388.3L299.4,382.9L300.9,381.2L301.2,379.9L302.6,377.1L302.5,375.2L305.1,371.9L303.0,370.5L303.1,368.7L304.8,368.0L307.4,368.7L308.6,368.0L314.6,368.3L318.4,368.2L324.7,366.7L330.4,366.7L333.2,363.2L333.7,361.1L334.9,360.3L334.7,357.9L335.8,354.2L338.0,351.7L341.5,350.8L343.4,347.5L343.4,346.1L344.8,345.7L346.3,344.3L348.3,343.3L352.0,340.0L352.0,339.3L353.9,337.4L353.1,335.9L353.3,333.8L355.1,331.9L355.1,351.5L355.1,368.3L357.9,366.1L360.3,368.2L361.3,369.6L365.2,370.7L367.3,370.0L368.8,370.1L370.7,369.3L372.3,368.0L374.5,367.6L376.9,365.9L378.7,365.6L382.4,365.9L384.0,367.1L387.5,366.9L388.8,366.4L389.9,367.2L401.0,385.1L405.1,391.2L409.6,399.1L420.0,418.7L418.7,421.5L417.4,422.4L417.9,424.1L417.1,426.3L414.0,429.2L414.0,430.8L412.8,431.7L412.8,435.6L398.3,442.1L387.1,447.0L376.3,443.7L374.3,443.0L362.1,439.4L362.5,442.0Z","MOQUEGUA":"M337.6,597.5L335.5,595.7L329.9,592.8L331.0,591.3L330.4,589.7L329.9,585.9L329.2,583.0L326.0,579.5L327.7,578.4L332.3,573.1L331.0,570.6L329.5,570.6L327.7,565.4L327.5,563.3L328.2,561.2L330.0,560.5L331.4,561.6L332.7,560.7L333.0,557.0L334.2,554.8L334.1,552.0L337.6,552.3L339.7,551.7L342.5,553.0L343.8,551.8L343.1,550.2L342.7,546.7L343.7,546.7L347.1,544.4L346.4,539.5L347.0,538.2L348.5,538.1L348.2,535.6L349.9,536.9L352.0,537.4L354.1,536.0L356.8,535.9L358.0,537.2L361.8,538.9L362.1,541.3L363.5,543.3L364.2,547.2L362.7,549.2L364.4,550.1L365.4,552.4L367.8,553.3L369.6,555.2L369.8,556.8L372.5,558.3L373.9,557.4L375.4,558.4L375.6,560.8L373.7,562.0L372.4,563.6L372.3,566.2L370.6,567.9L367.2,568.3L366.8,566.6L368.6,563.5L365.2,562.3L360.8,564.6L360.0,568.1L360.5,572.6L359.1,573.0L357.9,575.6L355.2,577.1L352.7,577.5L351.7,579.1L350.5,582.7L351.0,583.4L346.3,588.6L345.2,593.0L342.5,592.7L338.9,595.3L337.6,597.5Z","PASCO":"M167.3,365.7L168.6,370.4L167.9,373.3L166.4,372.8L166.0,371.4L163.4,370.9L160.3,371.3L159.0,369.5L157.3,368.7L157.8,367.2L157.3,363.8L155.6,361.1L154.7,357.8L154.8,356.4L153.3,354.7L152.5,351.0L153.5,349.6L155.1,348.7L160.3,347.4L160.9,346.1L165.4,344.3L166.3,348.3L167.6,347.2L169.2,347.3L172.2,349.1L174.0,349.3L174.7,350.3L177.4,350.8L179.1,348.4L179.1,346.7L181.3,344.8L181.9,343.4L183.7,343.2L186.4,341.7L186.4,339.2L187.3,336.3L189.5,335.5L190.1,333.1L191.5,334.2L193.9,333.8L196.6,331.8L197.5,330.4L200.2,330.3L200.6,329.7L199.7,327.4L201.7,327.5L204.4,329.3L206.1,329.5L207.7,328.6L209.7,329.3L211.6,326.7L213.1,325.9L214.7,326.3L216.2,325.6L216.1,324.2L218.5,320.4L218.0,318.7L218.7,316.9L220.4,315.5L223.5,317.8L223.8,320.3L226.4,321.0L226.8,324.7L228.0,327.3L227.9,330.3L229.1,331.4L228.8,334.4L229.6,337.1L230.7,338.5L232.0,338.4L232.8,340.2L235.2,340.9L235.4,344.1L233.7,347.3L234.4,349.9L235.6,349.9L236.8,351.6L238.5,355.0L237.4,356.2L235.2,356.1L233.5,357.4L232.3,359.1L230.4,360.2L230.1,362.0L226.8,362.8L225.9,364.3L223.9,365.4L222.5,365.1L221.3,363.8L219.4,363.5L217.7,362.4L216.6,362.6L215.3,360.9L213.2,360.6L211.2,359.3L210.4,359.8L209.2,357.5L207.2,357.1L205.7,359.2L203.4,358.8L201.6,360.5L201.0,362.4L199.2,363.7L196.2,363.5L194.3,365.0L193.8,363.3L194.5,361.1L193.5,360.1L190.7,359.8L190.2,362.0L186.7,362.7L185.4,361.9L183.7,362.4L181.9,364.5L181.3,363.9L179.1,364.4L176.8,362.3L175.1,364.3L173.5,365.2L172.5,367.1L170.2,367.0L169.6,365.6L169.2,365.5L168.3,365.8L168.0,365.6L167.8,365.6L167.3,365.7Z","PIURA":"M70.2,165.5L69.0,166.8L67.4,170.4L64.6,173.1L65.6,174.5L65.3,176.4L66.3,177.3L67.3,182.1L68.1,184.1L64.0,184.7L64.7,187.1L63.9,191.9L64.2,193.3L66.1,196.7L63.3,199.3L60.6,197.5L57.3,198.3L56.4,196.5L56.2,194.6L54.5,195.1L52.7,194.9L53.4,191.5L51.1,188.4L49.5,188.4L48.5,185.6L48.9,184.6L47.2,183.2L45.8,184.0L45.0,186.3L44.2,192.0L39.7,196.6L37.4,196.7L33.2,198.5L31.5,200.5L23.2,212.8L17.6,210.0L13.8,206.7L7.8,203.1L5.9,199.7L5.9,196.6L7.6,194.9L8.6,193.1L10.2,194.6L12.8,195.1L14.5,193.9L15.5,191.9L15.8,188.1L14.3,183.9L12.2,180.9L9.1,177.8L7.3,177.3L6.3,175.6L4.4,173.8L6.5,169.1L7.9,169.5L8.9,168.0L8.0,165.6L5.0,161.8L0.0,156.0L0.6,155.3L1.5,150.8L0.8,149.3L2.0,147.7L2.6,145.0L2.2,143.6L3.0,141.5L5.3,140.2L7.5,137.4L9.5,136.0L11.8,137.4L12.4,138.9L14.8,139.6L17.4,139.0L20.8,139.4L23.4,140.9L25.4,139.0L26.6,136.7L27.9,135.9L29.1,137.3L29.6,139.7L31.7,139.7L33.1,140.6L31.8,142.6L29.9,144.4L29.0,146.1L29.5,148.4L31.1,149.4L34.4,147.7L37.6,144.7L38.1,143.3L40.6,142.9L44.3,145.9L46.6,146.1L48.3,147.0L49.3,148.8L50.8,149.7L53.7,148.9L55.4,147.7L56.3,147.9L58.5,150.4L60.7,150.6L61.3,152.4L61.0,154.1L64.1,161.0L66.5,162.9L68.4,165.7L70.2,165.5Z","PUNO":"M411.3,549.9L411.3,544.1L414.7,547.1L414.7,548.0L411.3,549.9ZM387.3,579.6L385.6,579.1L384.3,579.8L382.4,577.9L380.3,578.1L374.1,574.2L373.9,571.8L372.1,570.1L370.6,567.9L372.3,566.2L372.4,563.6L373.7,562.0L375.6,560.8L375.4,558.4L373.9,557.4L372.5,558.3L369.8,556.8L369.6,555.2L367.8,553.3L365.4,552.4L364.4,550.1L362.7,549.2L364.2,547.2L363.5,543.3L362.1,541.3L361.8,538.9L358.0,537.2L356.8,535.9L354.1,536.0L352.0,537.4L349.9,536.9L348.2,535.6L347.5,533.7L344.4,529.1L345.6,526.6L345.0,524.3L342.0,521.7L341.8,519.1L342.5,518.0L341.0,516.3L341.9,514.3L343.9,512.4L342.8,511.1L343.5,510.0L343.1,508.6L342.1,501.8L342.8,500.9L342.5,497.0L343.1,494.8L341.8,494.0L340.5,494.5L338.5,491.5L342.2,488.3L342.4,486.1L343.5,484.1L342.7,482.8L343.5,481.3L345.2,480.1L346.2,478.2L345.6,476.8L346.7,474.8L348.6,473.3L349.0,471.5L346.8,470.0L347.8,467.0L347.9,464.4L349.9,462.9L351.5,463.4L352.2,462.5L351.1,460.3L351.7,457.8L353.7,457.5L355.0,456.0L357.5,454.8L357.7,453.2L360.4,450.6L360.7,448.7L362.2,448.0L362.4,446.1L361.5,444.2L362.5,442.0L362.1,439.4L374.3,443.0L376.3,443.7L387.1,447.0L398.3,442.1L412.8,435.6L413.4,437.5L412.7,439.4L413.7,443.8L411.3,451.9L408.8,457.3L406.5,457.6L406.4,458.6L409.3,461.0L409.2,461.8L411.3,462.8L410.2,465.0L409.1,465.5L409.3,468.4L410.6,470.0L412.0,470.5L413.3,474.6L414.3,476.5L409.8,476.5L408.0,479.7L409.0,481.7L407.5,483.4L405.8,484.3L403.9,486.4L403.6,488.6L401.3,488.7L400.9,491.2L400.0,492.1L401.1,494.0L398.6,494.8L396.8,496.0L397.2,498.8L396.6,501.0L398.6,504.4L399.1,505.9L400.7,506.8L404.2,510.6L401.4,513.4L400.3,515.2L400.1,518.5L398.9,517.4L397.6,520.8L394.1,518.9L392.8,517.1L389.7,514.6L388.8,515.1L387.3,513.5L387.2,512.2L385.4,510.6L384.4,510.7L382.9,513.1L381.5,512.4L378.9,512.6L378.6,514.7L377.3,516.0L378.0,518.0L380.0,521.4L383.0,524.8L383.7,527.2L382.2,527.1L380.5,525.7L380.5,524.2L379.0,522.6L376.6,526.2L374.8,525.9L374.3,527.0L374.6,529.1L376.6,531.3L379.3,532.6L381.3,529.1L383.1,530.7L383.1,532.8L384.9,533.5L386.3,534.9L389.9,534.9L393.6,536.1L394.5,537.9L391.9,541.3L392.2,543.3L394.4,542.3L396.7,544.7L400.6,545.4L403.7,544.8L406.7,542.9L409.3,544.9L406.9,545.8L407.8,547.5L407.8,549.9L405.8,551.9L405.7,553.0L407.3,555.1L407.5,556.7L408.7,558.4L407.0,559.4L402.9,560.8L401.3,564.4L398.5,567.1L397.2,569.5L395.5,570.7L396.2,572.4L393.7,573.2L391.6,574.8L390.1,575.3L387.3,579.6ZM379.1,509.7L377.6,507.9L376.8,508.5L374.7,507.9L373.9,506.4L371.6,508.4L373.4,509.2L377.0,510.1L379.1,509.7Z","SAN MARTIN":"M177.1,278.3L173.7,278.8L172.2,283.2L172.7,289.6L171.1,292.9L168.9,294.3L167.7,289.5L167.3,286.9L165.8,285.1L165.5,281.9L162.8,282.4L161.9,283.9L161.1,286.7L158.6,284.6L155.9,284.7L153.5,285.4L149.0,284.9L148.5,285.9L146.2,286.7L141.8,286.1L140.4,284.9L140.5,283.7L139.0,282.3L140.6,281.2L144.2,280.8L146.3,278.5L146.7,277.0L145.9,274.8L146.5,273.2L143.9,271.2L142.8,269.3L139.5,268.4L138.4,268.6L135.5,268.0L133.7,269.5L130.7,269.4L129.9,267.2L130.9,264.4L130.0,264.2L128.8,261.2L127.5,260.9L125.9,259.4L127.4,257.4L125.6,253.5L126.0,250.9L123.2,248.5L122.4,245.9L122.6,244.7L122.0,242.0L123.4,241.3L122.1,238.9L119.8,237.5L118.3,232.7L119.5,230.3L118.2,227.4L118.7,225.6L118.7,222.7L120.5,223.1L123.1,220.9L125.4,223.1L130.8,223.7L129.0,220.6L130.4,220.6L132.3,217.9L132.6,216.0L134.4,214.0L133.9,211.4L134.8,211.3L136.1,213.1L137.7,213.1L139.0,210.5L136.8,208.1L136.0,205.2L134.1,205.1L132.0,204.1L130.3,201.6L129.0,202.3L127.6,200.3L125.7,202.4L123.8,200.6L121.3,199.6L121.8,198.1L121.0,195.6L118.1,194.2L117.8,189.7L119.0,187.0L118.1,184.8L118.0,181.4L118.8,180.4L120.4,180.5L121.2,180.5L124.2,182.2L124.9,181.0L126.3,182.4L128.1,186.3L129.9,186.5L131.2,185.8L132.2,187.0L135.7,186.7L142.0,189.4L143.6,189.1L144.7,190.4L147.1,191.9L148.9,191.8L149.5,195.7L151.8,198.8L151.8,200.4L155.4,200.4L158.4,201.1L162.9,198.6L164.2,199.4L166.0,203.2L167.5,203.8L169.2,205.9L172.4,206.2L175.5,203.7L177.7,203.5L178.9,204.9L182.1,205.0L182.7,203.7L186.0,205.0L187.2,203.5L188.9,203.1L189.4,201.1L190.8,200.4L192.1,203.5L192.3,205.9L193.6,207.1L193.5,209.3L191.5,212.0L192.8,216.8L193.1,221.8L193.1,226.1L192.8,226.7L188.7,228.6L187.6,228.1L186.6,229.5L184.2,229.0L181.7,227.1L177.8,226.8L174.9,227.6L176.2,230.3L174.9,232.0L176.2,233.8L176.2,236.5L174.6,239.3L171.8,240.8L171.0,242.9L169.5,244.3L170.1,245.1L169.5,247.5L171.1,250.5L173.5,252.7L173.2,258.2L175.1,260.5L177.7,266.2L181.2,264.9L182.2,266.6L181.7,269.5L179.3,269.9L178.2,270.8L178.5,273.8L179.4,276.1L178.7,278.0L177.1,278.3Z","TACNA":"M387.3,579.6L389.5,579.7L393.1,582.5L393.0,586.9L386.5,592.1L382.2,591.6L381.3,593.0L382.0,595.5L382.2,598.9L383.8,601.6L383.6,603.0L381.6,607.4L380.2,609.1L376.7,612.3L373.7,612.5L370.5,614.2L365.9,613.9L362.9,615.3L359.5,612.7L352.9,608.9L348.5,604.9L346.3,604.0L345.7,602.3L341.9,599.4L339.1,599.1L337.6,597.5L338.9,595.3L342.5,592.7L345.2,593.0L346.3,588.6L351.0,583.4L350.5,582.7L351.7,579.1L352.7,577.5L355.2,577.1L357.9,575.6L359.1,573.0L360.5,572.6L360.0,568.1L360.8,564.6L365.2,562.3L368.6,563.5L366.8,566.6L367.2,568.3L370.6,567.9L372.1,570.1L373.9,571.8L374.1,574.2L380.3,578.1L382.4,577.9L384.3,579.8L385.6,579.1L387.3,579.6Z","TUMBES":"M27.9,135.9L26.6,136.7L25.4,139.0L23.4,140.9L20.8,139.4L17.4,139.0L14.8,139.6L12.4,138.9L11.8,137.4L9.5,136.0L11.3,132.6L12.3,131.6L16.4,128.9L17.7,125.0L19.0,123.6L24.7,120.9L26.0,119.3L27.3,116.6L29.6,116.0L31.4,116.1L34.3,113.2L36.7,114.4L36.1,115.6L37.2,117.5L37.8,119.6L38.0,124.3L38.7,126.5L38.8,128.7L39.4,130.2L36.1,131.6L34.1,133.7L32.0,132.5L29.8,132.8L27.9,135.9Z","UCAYALI":"M355.1,331.9L353.3,333.8L353.1,335.9L353.9,337.4L352.0,339.3L352.0,340.0L348.3,343.3L346.3,344.3L344.8,345.7L343.4,346.1L343.4,347.5L341.5,350.8L338.0,351.7L335.8,354.2L334.7,357.9L334.9,360.3L333.7,361.1L333.2,363.2L330.4,366.7L324.7,366.7L318.4,368.2L314.6,368.3L308.6,368.0L307.4,368.7L304.8,368.0L303.1,368.7L303.0,370.5L305.1,371.9L302.5,375.2L302.6,377.1L301.2,379.9L298.9,378.6L296.6,379.5L293.2,381.3L291.4,382.9L288.9,382.7L285.7,381.1L284.7,380.0L282.8,381.2L279.4,380.3L277.6,379.4L278.0,377.8L277.0,377.2L276.3,375.0L275.1,377.2L271.4,378.2L269.3,378.1L267.5,378.8L265.0,378.8L262.1,381.2L259.9,379.0L260.7,378.5L261.1,375.9L260.0,370.5L258.0,369.9L257.1,366.9L257.4,363.6L255.8,363.2L252.9,360.7L250.9,359.4L249.0,361.6L248.7,365.7L247.7,366.8L247.3,369.6L247.4,373.2L243.6,372.4L243.6,370.7L242.7,368.1L239.8,367.9L236.2,369.0L234.4,368.9L230.5,370.2L228.1,368.5L226.3,368.2L226.0,366.6L223.9,365.4L225.9,364.3L226.8,362.8L230.1,362.0L230.4,360.2L232.3,359.1L233.5,357.4L235.2,356.1L237.4,356.2L238.5,355.0L236.8,351.6L235.6,349.9L234.4,349.9L233.7,347.3L235.4,344.1L235.2,340.9L232.8,340.2L232.0,338.4L230.7,338.5L229.6,337.1L228.8,334.4L229.1,331.4L227.9,330.3L228.0,327.3L226.8,324.7L226.4,321.0L223.8,320.3L223.5,317.8L220.4,315.5L220.5,314.4L223.3,311.3L221.7,306.5L221.6,305.1L220.4,304.3L221.3,302.7L221.5,298.4L222.7,295.1L225.2,293.6L225.4,292.7L224.7,287.1L222.4,285.9L216.4,288.7L214.8,289.7L214.7,292.9L211.7,296.3L211.9,298.8L210.4,299.5L208.2,297.9L206.6,298.5L205.0,300.2L204.7,302.4L203.7,303.8L201.8,304.7L202.7,306.5L202.8,308.8L201.0,310.2L200.3,311.5L198.8,311.1L194.7,311.1L193.3,313.8L191.1,314.6L187.5,314.4L185.5,310.3L183.4,307.4L183.0,305.2L180.7,301.8L180.7,300.1L179.3,297.0L179.2,293.7L178.4,291.6L180.2,289.7L182.1,289.4L183.9,285.9L183.9,284.1L186.0,283.9L186.3,282.3L188.2,281.3L189.9,281.3L191.6,283.2L195.1,282.2L195.3,280.7L193.0,279.2L193.0,277.2L194.1,276.0L195.5,273.1L197.2,272.2L200.2,271.7L201.6,272.7L202.6,271.8L203.6,268.1L205.0,266.8L208.6,265.8L210.3,266.5L213.1,270.2L217.3,268.7L218.7,266.9L222.0,265.5L224.0,261.3L225.8,260.0L224.4,259.1L223.5,257.4L223.9,256.4L221.5,252.8L221.5,250.7L222.4,248.5L223.6,247.7L225.1,243.8L226.2,242.8L227.5,244.0L232.4,245.7L234.3,245.5L236.9,246.0L238.3,247.2L241.5,249.0L241.7,250.2L243.4,251.9L246.5,254.2L246.2,255.4L248.2,256.4L249.4,257.9L252.3,258.9L253.6,260.8L253.5,262.7L250.6,264.5L252.6,266.2L253.8,267.9L254.8,267.7L256.6,271.8L256.3,273.1L257.3,275.8L258.6,276.7L258.0,279.2L263.6,283.4L265.0,283.5L264.6,287.8L265.4,288.0L267.7,290.7L270.4,291.0L272.2,293.9L272.3,295.0L274.8,298.3L275.9,298.3L277.7,302.1L278.0,304.2L277.2,305.9L273.9,308.8L270.8,313.1L269.7,313.3L269.3,314.9L285.4,315.0L291.6,317.3L295.6,317.1L299.8,319.3L299.6,321.4L301.0,323.2L300.5,325.0L302.0,327.3L304.1,327.9L303.8,329.0L304.1,331.5L303.4,332.4L303.2,334.7L317.9,334.7L329.8,334.7L330.9,333.6L332.4,334.4L335.9,332.7L337.0,330.4L340.6,328.5L342.3,328.6L343.1,326.7L344.8,326.0L346.6,323.4L348.9,322.7L350.6,320.2L353.6,318.4L356.8,315.6L358.4,317.7L357.5,319.1L355.8,319.5L355.6,321.5L357.1,323.6L357.9,325.5L357.6,326.8L355.1,328.2L355.1,331.9Z"}};
+
+/* ================= Datos ================= */
+const DATA = [];
+const COLMAP={'CODIGO_UNICO':'cui','NOMBRE_PIP':'nom','NIVEL':'niv','SECTOR':'sec','PLIEGO':'pli',
+ 'UEI_EJECUCION_NOMBRE':'uei','FUNCION':'fun','DES_TIPO_FORMATO':'tip','MARCO':'mar',
+ 'MODALIDAD_EJECUCION':'mod','COSTO_TOTAL_INV_ACTUALIZADO':'costo','DEVENG_ACUMULADO':'dev',
+ 'SALDO_MONTO':'saldo','MONTO_LAUDO':'lau','MONTO_FIANZA':'fia','PIM AÑO ACTUAL':'pim',
+ 'AVANCE_FISICO':'afis','MESES_DEV':'mdev','ULTIMO_DEVENGADO':'udev',
+ 'DEPARTAMENTO_INVERSION':'dep','PROVINCIA_INVERSION':'prov','DISTRITO_INVERSION':'dist',
+ 'REGISTRO OBRA PARALIZADA':'rop','Fuente_externa':'fext','BD_1138':'b1138','ESTADO_PARA':'epar',
+ 'DS124':'ds124','Escenario1':'e1','Escenario2':'e2','OXI':'oxi','Inventario_MEF':'inv',
+ 'SITUACION_GENERAL':'sit','PROBLEMA_GENERAL':'prob','ACCIONES':'acc','DES_ULT_SITUACION':'txt',
+ 'FEC_ULT_SITUACION':'fsit','ETAPA_F8_MODIF':'etp','SEACE_CONTRATO':'sea'};
+
+function expandSeed(S){
+  if (Array.isArray(S)) return S;
+  const out=new Array(S.n), keys=Object.keys(S.cols);
+  for (let i=0;i<S.n;i++){ const o={};
+    for (const k of keys){ let v=S.cols[k][i];
+      if (S.dict[k]) v = v<0 ? null : S.dict[k][v];
+      if (v!==null && v!==undefined) o[k]=v; }
+    out[i]=o; }
+  return out;
+}
+try{
+  let _a=null;
+  if (window.SEED && (window.SEED.n || window.SEED.length)) _a=expandSeed(window.SEED);
+  else { const _s=document.getElementById('seed');
+    if(_s){ const _p=JSON.parse(_s.textContent||'[]'); if(Array.isArray(_p)&&_p.length) _a=_p; } }
+  if (_a){ DATA.length=0; _a.forEach(x=>DATA.push(x)); }
+}catch(e){ console.warn(e); }
+
+/* ---- Reglas de derivación (único camino: semilla o Excel cargado) ---- */
+const NIVL={GN:'Gobierno Nacional',GR:'Gobierno Regional',GL:'Gobierno Local'};
+const SIT_PARA=['Suspendida en ejecución','Con adquisición de bienes, servicios y/o ejecución de obras paralizadas'];
+const txt = v => (v==null?'':(''+v)).replace(/\s+/g,' ').trim();
+const SDv = (v,alt) => { v=txt(v); return (v===''||v==='0')?(alt||'Sin dato'):v; };
+const num = v => { const n=+v; return isFinite(n)?n:0; };
+const noAcc = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const cap1 = s => s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
+
+function modGroup(m){
+  m=txt(m).toUpperCase(); if(!m) return 'Sin dato';
+  const d=/ADMINISTRACI[OÓ]N DIRECTA/.test(m), c=m.includes('POR CONTRATA'), o=/APP|IMPUESTOS|NÚCLEO|NUCLEO|CONCURSO|GOBIERNO A GOBIERNO|CONVENIO|BIENES Y SERVICIOS/.test(m);
+  if (o) return 'Otras (APP, OxI, núcleo ejecutor, etc.)';
+  if (d&&c) return 'Mixta (directa y contrata)';
+  if (d) return 'Administración directa';
+  if (c) return 'Por contrata';
+  return 'Otras (APP, OxI, núcleo ejecutor, etc.)';
+}
+const ORD={
+  nivL:['Gobierno Nacional','Gobierno Regional','Gobierno Local','Sin dato'],
+  rdev:['8 a 12 meses','13 a 24 meses','25 a 36 meses','37 a 60 meses','Más de 60 meses'],
+  rsal:['Hasta S/ 100 mil','S/ 100 mil a 400 mil','S/ 400 mil a 1 mill.','S/ 1 a 10 mill.','S/ 10 a 100 mill.','Más de S/ 100 mill.'],
+  rfis:['0% a 20%','20% a 40%','40% a 60%','60% a 80%','80% a 100%','Sin dato válido'],
+  rfin:['10% a 20%','20% a 30%','30% a 40%','40% a 50%','50% a 60%','60% a 70%','70% a 80%','80% a 90%'],
+  confL:['Solo criterio MEF','1 fuente adicional','2 fuentes adicionales','3 fuentes adicionales'],
+  lCGR:['Sí','No'],lENT:['Sí','No'],lBM:['Sí','No'],lROP:['Sí','No'],l1138:['Sí','No'],lEST:['Sí','No'],ds:['Sí','No'],e1L:['Sí','No'],e2L:['Sí','No']
+};
+function deriveAll(a){
+  const FUNC=new Map(), fc=new Map();
+  a.forEach(r=>{ const f=txt(r.fun); if(!f) return; const k=noAcc(f); const c=(fc.get(f)||0)+1; fc.set(f,c); const cur=FUNC.get(k); if(!cur||fc.get(cur)<c||(fc.get(cur)===c&&f!==k)) FUNC.set(k,f); });
+  a.forEach(r=>{
+  r.cui=txt(r.cui).replace(/\.0$/,''); r.nom=txt(r.nom);
+  r.nivL=NIVL[txt(r.niv)]||'Sin dato';
+  r.dep=SDv(r.dep); if(r.dep==='-MUL.DEP-') r.dep='MULTIDEPARTAMENTAL';
+  r.prov=SDv(r.prov); r.dist=SDv(r.dist); r.pli=SDv(r.pli); r.uei=SDv(r.uei); r.sec=SDv(r.sec);
+  r.fun=SDv(FUNC.get(noAcc(txt(r.fun)))||r.fun); r.tip=SDv(r.tip); r.mar=SDv(r.mar); r.modG=modGroup(r.mod);
+  r.costo=num(r.costo); r.dev=num(r.dev); r.saldo=num(r.saldo); r.lau=num(r.lau); r.fia=num(r.fia); r.pim=num(r.pim);
+  r.afin = r.costo>0 ? 100*r.dev/r.costo : 0;
+  const af = (r.afis===null||r.afis===undefined||txt(r.afis)==='') ? null : num(r.afis);
+  r.afisV = (af!==null && af>=0 && af<=100) ? af : null;
+  r.rfis = r.afisV===null ? 'Sin dato válido' : r.afisV<20?'0% a 20%':r.afisV<40?'20% a 40%':r.afisV<60?'40% a 60%':r.afisV<80?'60% a 80%':'80% a 100%';
+  r.mdev=num(r.mdev);
+  r.rdev = r.mdev<=12?'8 a 12 meses':r.mdev<=24?'13 a 24 meses':r.mdev<=36?'25 a 36 meses':r.mdev<=60?'37 a 60 meses':'Más de 60 meses';
+  const s=r.saldo;
+  r.rsal = s<=1e5?'Hasta S/ 100 mil':s<=4e5?'S/ 100 mil a 400 mil':s<=1e6?'S/ 400 mil a 1 mill.':s<=1e7?'S/ 1 a 10 mill.':s<=1e8?'S/ 10 a 100 mill.':'Más de S/ 100 mill.';
+  const fb=Math.min(8,Math.max(1,Math.floor(r.afin/10)));
+  r.rfin = (fb*10)+'% a '+(fb*10+10)+'%';
+  r.udev=txt(r.udev); r.fsit=txt(r.fsit); r.txt=txt(r.txt); if(r.txt.length>300) r.txt=r.txt.slice(0,297).trim()+'…';
+  const fx=txt(r.fext);
+  r.sit=SDv(r.sit,'Sin clasificar'); r.prob=SDv(txt(r.prob).replace(/^-\s*/,''),'Sin clasificar'); r.acc=SDv(txt(r.acc).replace(/^-\s*/,''),'Sin clasificar');
+  r.fCGR=/CGR/i.test(fx); r.fENC=/encuesta/i.test(fx);
+  r.fROP=txt(r.rop).toUpperCase()==='SI'; r.fF12=SIT_PARA.indexOf(r.sit)>=0; r.fENT=r.fROP||r.fF12;
+  r.f1138=txt(r.b1138)!==''; r.fEST=txt(r.epar)!==''; r.fBM=r.f1138||r.fEST;
+  r.conf=(r.fCGR?1:0)+(r.fENT?1:0)+(r.fBM?1:0);
+  r.confL=ORD.confL[r.conf];
+  const yn=b=>b?'Sí':'No';
+  r.lCGR=yn(r.fCGR); r.lENT=yn(r.fENT); r.lBM=yn(r.fBM); r.lROP=yn(r.fROP); r.l1138=yn(r.f1138); r.lEST=yn(r.fEST);
+  r.ds=yn(txt(r.ds124).toUpperCase()==='SI'); r.e1L=yn(/^s/i.test(txt(r.e1))); r.e2L=yn(/^s/i.test(txt(r.e2)));
+  r._q=(r.cui+' '+noAcc(r.nom)).toLowerCase();
+}); }
+deriveAll(DATA);
+
+/* ================= Filtros ================= */
+// [clave, etiqueta, grupo]
+const FCFG=[
+ ['nivL','Nivel de gobierno','Territorio y entidad'],['dep','Departamento','Territorio y entidad'],['prov','Provincia','Territorio y entidad'],
+ ['dist','Distrito','Territorio y entidad'],['sec','Sector','Territorio y entidad'],['pli','Pliego','Territorio y entidad'],
+ ['lCGR','Obra paralizada reportada por CGR','Lectura de paralización'],['lENT','Declarada paralizada por la entidad','Lectura de paralización'],
+ ['lROP','Registro de obra paralizada (BI)','Lectura de paralización'],['lBM','Base MEF (BD 1138 o estado paralizado)','Lectura de paralización'],
+ ['confL','Fuentes que coinciden','Lectura de paralización'],['ds','Alcance D.S. 124','Lectura de paralización'],
+ ['rdev','Meses sin devengar','Inversión'],['rsal','Saldo por ejecutar','Inversión'],['rfis','Avance físico','Inversión'],['rfin','Avance financiero','Inversión'],
+ ['e1L','Escenario 1 (avance físico ≥ 40%)','Inversión'],['e2L','Escenario 2 (avance físico ≥ 60%)','Inversión'],
+ ['fun','Función','Inversión'],['tip','Tipo de inversión','Inversión'],['mar','Marco','Inversión'],['modG','Modalidad de ejecución','Inversión'],
+ ['sit','Situación general','Seguimiento F12B'],['prob','Problema principal','Seguimiento F12B'],['acc','Acción propuesta','Seguimiento F12B']
+];
+const FLBL=Object.fromEntries(FCFG.map(c=>[c[0],c[1]]));
+const state={q:'',meas:'n',tab:'pan',mapm:'meas',sort:{k:'saldo',d:-1},page:0,open:-1};
+FCFG.forEach(c=>state[c[0]]=[]);
+
+function matchRow(r,k){
+  const sel=state[k]; if(!sel.length) return true;
+  return sel.indexOf(r[k])>=0;
+}
+function matchQ(r){ const q=noAcc(state.q.trim().toLowerCase()); return !q || r._q.indexOf(q)>=0; }
+function filtered(){ return DATA.filter(r=>matchQ(r)&&FCFG.every(c=>matchRow(r,c[0]))); }
+function rowsExcept(k){ return DATA.filter(r=>matchQ(r)&&FCFG.every(c=>c[0]===k||matchRow(r,c[0]))); }
+
+let FILT=[];
+const $=id=>document.getElementById(id);
+const esc=s=>(''+s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CARET='<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+function buildFilterBox(){
+  let h='', g='';
+  FCFG.forEach((c,i)=>{
+    if(c[2]!==g){ if(g) h+='</div>'; g=c[2]; h+='<div class="fgroup"><div class="fgroup-t">'+esc(g)+'</div>'; }
+    h+='<div class="fl"><label for="dd_'+c[0]+'">'+esc(c[1])+'</label><button type="button" class="dd" id="dd_'+c[0]+'" data-i="'+i+'"><span>Todos</span>'+CARET+'</button></div>';
+  });
+  h+='</div>'; $('fbox').innerHTML=h;
+  $('fbox').querySelectorAll('.dd').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation(); openPop(+b.dataset.i,b);}));
+}
+function refreshFilters(){
+  FCFG.forEach(c=>{
+    const b=$('dd_'+c[0]), s=state[c[0]];
+    b.classList.toggle('on',s.length>0);
+    b.firstChild.textContent = !s.length?'Todos': s.length===1? s[0] : s.length+' seleccionados';
+    b.title = s.join(' · ');
+  });
+  let h='';
+  if(state.q.trim()) h+='<span class="pill"><span><b>Búsqueda:</b> '+esc(state.q)+'</span><button type="button" aria-label="Quitar búsqueda" data-k="__q">×</button></span>';
+  FCFG.forEach(c=>{ const s=state[c[0]]; if(!s.length) return;
+    h+='<span class="pill" title="'+esc(c[1]+': '+s.join(' · '))+'"><span><b>'+esc(c[1])+':</b> '+esc(s.length>2?s.slice(0,2).join(', ')+' +'+(s.length-2):s.join(', '))+'</span><button type="button" aria-label="Quitar filtro '+esc(c[1])+'" data-k="'+c[0]+'">×</button></span>';
+  });
+  $('actives').innerHTML = h ? '<span class="lbl">Filtrando por</span>'+h : '<span class="lbl">Sin filtros: se muestran todas las inversiones paralizadas</span>';
+  $('actives').querySelectorAll('button[data-k]').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.k==='__q'){ state.q=''; $('q').value=''; } else state[b.dataset.k]=[];
+    update();
+  }));
+}
+
+/* ---- Popover de selección múltiple ---- */
+let popEl=null;
+function closePop(){ if(popEl){ popEl.remove(); popEl=null; state.open=-1; } }
+function openPop(i,btn){
+  if(state.open===i){ closePop(); return; }
+  closePop(); state.open=i;
+  const k=FCFG[i][0], rows=rowsExcept(k), cnt=new Map();
+  rows.forEach(r=>cnt.set(r[k],(cnt.get(r[k])||0)+1));
+  // incluir valores existentes en toda la base (atenuados si quedan en 0)
+  const all=new Set(DATA.map(r=>r[k])); state[k].forEach(v=>all.add(v));
+  let vals=[...all];
+  if(ORD[k]) vals.sort((a,b)=>{const ia=ORD[k].indexOf(a),ib=ORD[k].indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
+  else vals.sort((a,b)=>(cnt.get(b)||0)-(cnt.get(a)||0) || (''+a).localeCompare(''+b,'es'));
+  const p=document.createElement('div'); p.className='pop'; p.setAttribute('role','dialog'); p.setAttribute('aria-label',FCFG[i][1]);
+  const many=vals.length>8;
+  p.innerHTML='<div class="pop-h"><div class="pop-t">'+esc(FCFG[i][1])+'</div>'+(many?'<input class="search" id="popq" type="search" placeholder="Buscar en '+vals.length.toLocaleString('es-PE')+' opciones" autocomplete="off">':'')+
+    '<div class="pop-acts"><button type="button" class="link" data-a="all">Todos</button>'+(many?'<button type="button" class="link" data-a="vis">Marcar visibles</button>':'')+'</div></div><div class="pop-list" id="poplist"></div>';
+  document.body.appendChild(p); popEl=p;
+  const r=btn.getBoundingClientRect(), W=Math.min(340,window.innerWidth-24);
+  p.style.width=W+'px';
+  let left = window.innerWidth>900 ? r.right+8 : r.left; if(left+W>window.innerWidth-12) left=window.innerWidth-12-W;
+  p.style.left=Math.max(12,left)+'px';
+  const top=Math.min(r.top, window.innerHeight-Math.min(460,window.innerHeight*.7)-12);
+  p.style.top=(window.innerWidth>900?Math.max(12,top):Math.min(r.bottom+4,window.innerHeight-300))+'px';
+  let shown=[];
+  const draw=()=>{
+    const q=many?noAcc(($('popq').value||'').toLowerCase().trim()):'';
+    shown=vals.filter(v=>!q||noAcc((''+v).toLowerCase()).indexOf(q)>=0);
+    const lim=shown.slice(0,300);
+    $('poplist').innerHTML = lim.map((v,j)=>{ const c=cnt.get(v)||0, on=state[k].indexOf(v)>=0;
+      return '<label class="opt'+(c?'':' zero')+'"><input type="checkbox" data-j="'+j+'"'+(on?' checked':'')+'><span>'+esc(v)+'</span><span class="c">'+c.toLocaleString('es-PE')+'</span></label>'; }).join('')
+      + (shown.length>300?'<div class="pop-more">'+(shown.length-300).toLocaleString('es-PE')+' opciones más: use el buscador</div>':'')
+      + (!shown.length?'<div class="pop-more">Sin coincidencias</div>':'');
+    $('poplist').querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{
+      const v=lim[+inp.dataset.j], s=state[k], ix=s.indexOf(v);
+      if(inp.checked&&ix<0) s.push(v); if(!inp.checked&&ix>=0) s.splice(ix,1);
+      update(true);
+    }));
+  };
+  draw();
+  if(many){ $('popq').addEventListener('input',draw); setTimeout(()=>$('popq').focus(),0); }
+  p.querySelector('[data-a="all"]').addEventListener('click',()=>{ state[k]=[]; update(true); draw(); });
+  const vb=p.querySelector('[data-a="vis"]'); if(vb) vb.addEventListener('click',()=>{ shown.slice(0,300).forEach(v=>{ if(state[k].indexOf(v)<0) state[k].push(v); }); update(true); draw(); });
+  p.addEventListener('click',e=>e.stopPropagation());
+}
+document.addEventListener('click',closePop);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closePop(); closeSide(); } });
+
+function toggleVal(k,v){ const s=state[k], ix=s.indexOf(v); if(ix>=0) s.splice(ix,1); else s.push(v); update(); }
+
+/* ================= Utilidades ================= */
+const fN=n=>Math.round(n).toLocaleString('es-PE');
+const fM=v=>{ const m=v/1e6, a=Math.abs(m); return 'S/ '+m.toLocaleString('es-PE',{minimumFractionDigits:a<100?1:0,maximumFractionDigits:a<100?1:0})+' mill.'; };
+const fMs=v=>{ const m=v/1e6, a=Math.abs(m); return m.toLocaleString('es-PE',{minimumFractionDigits:a<100?1:0,maximumFractionDigits:a<100?1:0}); };
+const fP=(p,d)=>(isFinite(p)?p:0).toLocaleString('es-PE',{minimumFractionDigits:d==null?1:d,maximumFractionDigits:d==null?1:d})+'%';
+const MEAS={n:{t:'Inversiones',v:a=>a.n,f:v=>fN(v)},saldo:{t:'Saldo por ejecutar (S/ mill.)',v:a=>a.saldo,f:v=>fMs(v)},costo:{t:'Costo actualizado (S/ mill.)',v:a=>a.costo,f:v=>fMs(v)}};
+function agg(rows){ const a={n:0,saldo:0,costo:0,dev:0,cgr:0}; for(const r of rows){a.n++;a.saldo+=r.saldo;a.costo+=r.costo;a.dev+=r.dev;if(r.fCGR)a.cgr++;} return a; }
+function groupBy(rows,fn){ const m=new Map(); for(const r of rows){ const k=fn(r); let a=m.get(k); if(!a){a={k,n:0,saldo:0,costo:0,dev:0,cgr:0,rows:[]};m.set(k,a);} a.n++;a.saldo+=r.saldo;a.costo+=r.costo;a.dev+=r.dev;if(r.fCGR)a.cgr++; a.rows.push(r);} return [...m.values()]; }
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function hex2rgb(h){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [n>>16&255,n>>8&255,n&255]; }
+function mix(a,b,t){ const A=hex2rgb(a),B=hex2rgb(b); return 'rgb('+A.map((x,i)=>Math.round(x+(B[i]-x)*t)).join(',')+')'; }
+function lum(rgbStr){ const m=rgbStr.match(/\d+/g).map(Number).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);}); return .2126*m[0]+.7152*m[1]+.0722*m[2]; }
+const W=el=>Math.max(260,el.clientWidth);
+function trunc(s,px,cw){ const n=Math.max(4,Math.floor(px/(cw||6.3))); return s.length>n? s.slice(0,n-1).trim()+'…' : s; }
+
+/* Tooltip */
+const tip=$('tip');
+function showTip(e,html){ tip.innerHTML=html; tip.hidden=false; moveTip(e); }
+function moveTip(e){ const pad=14; let x=e.clientX+pad, y=e.clientY+pad; const r=tip.getBoundingClientRect();
+  if(x+r.width>window.innerWidth-8) x=e.clientX-r.width-pad; if(y+r.height>window.innerHeight-8) y=e.clientY-r.height-pad;
+  tip.style.left=Math.max(8,x)+'px'; tip.style.top=Math.max(8,y)+'px'; }
+function hideTip(){ tip.hidden=true; }
+function aggTip(title,a,tot){
+  return '<div class="tt">'+esc(title)+'</div>'+
+    fN(a.n)+' inversiones'+(tot?' · '+fP(100*a.n/tot.n):'')+'<br>Saldo: <b>'+fM(a.saldo)+'</b>'+(tot&&tot.saldo?' · '+fP(100*a.saldo/tot.saldo):'')+
+    '<br>Costo actualizado: '+fM(a.costo)+'<br>Con obra paralizada CGR: '+fN(a.cgr);
+}
+function bindTips(root,getter){
+  root.querySelectorAll('[data-tip]').forEach(g=>{
+    g.addEventListener('mouseenter',e=>showTip(e,getter(g.dataset.tip)));
+    g.addEventListener('mousemove',moveTip); g.addEventListener('mouseleave',hideTip);
+  });
+}
+const bar=(x,y,w,h,r,fill)=>{ // extremo de dato redondeado, anclado a la base
+  if(w<=0) return ''; r=Math.min(r,w/2,h/2);
+  return '<path d="M'+x+','+y+'H'+(x+w-r)+'Q'+(x+w)+','+y+' '+(x+w)+','+(y+r)+'V'+(y+h-r)+'Q'+(x+w)+','+(y+h)+' '+(x+w-r)+','+(y+h)+'H'+x+'Z" fill="'+fill+'"/>';
+};
+const vbarP=(x,y,w,h,r,fill)=>{ if(h<=0) return ''; r=Math.min(r,w/2,h/2);
+  return '<path d="M'+x+','+(y+h)+'V'+(y+r)+'Q'+x+','+y+' '+(x+r)+','+y+'H'+(x+w-r)+'Q'+(x+w)+','+y+' '+(x+w)+','+(y+r)+'V'+(y+h)+'Z" fill="'+fill+'"/>'; };
+
+/* ================= Gráficos ================= */
+// Barras horizontales: etiqueta a la izquierda, valor al final de la barra
+function hbar(el,rows,key,opt){
+  opt=opt||{}; const tot=agg(rows), m=MEAS[state.meas];
+  let items=groupBy(rows,r=>r[key]);
+  if(opt.order) items.sort((a,b)=>{const ia=opt.order.indexOf(a.k),ib=opt.order.indexOf(b.k);return (ia<0?99:ia)-(ib<0?99:ib);});
+  else items.sort((a,b)=>{ const la=/^Sin (dato|clasificar)$/.test(a.k), lb=/^Sin (dato|clasificar)$/.test(b.k); return (la-lb)||(m.v(b)-m.v(a)); });
+  const extra=opt.top && items.length>opt.top ? items.length-opt.top : 0;
+  if(opt.top) items=items.slice(0,opt.top);
+  if(!items.length){ el.innerHTML='<div class="empty">Sin inversiones con estos filtros</div>'; return; }
+  const w=W(el), rowH=opt.rowH||26, lw=Math.min(opt.lw||260, Math.round(w*(opt.lwr||.42))), vw=Math.max(70,Math.min(96,w*.16)), bw=w-lw-vw-6;
+  const max=Math.max(...items.map(m.v))||1, sel=state[key]||[], col=opt.color||'var(--bar)';
+  let s='<svg width="'+w+'" height="'+(items.length*rowH+4)+'" role="img" aria-label="'+esc(opt.aria||key)+'">';
+  items.forEach((a,i)=>{
+    const y=i*rowH, v=m.v(a), bl=Math.max(v>0?2:0,bw*v/max), dim=sel.length&&sel.indexOf(a.k)<0;
+    const label=opt.lab?opt.lab(a.k):a.k;
+    s+='<g class="hit" data-tip="'+i+'" data-k="'+esc(a.k)+'"><rect class="bk" x="0" y="'+y+'" width="'+w+'" height="'+rowH+'" fill="transparent" rx="4"/>'+
+      '<text x="'+(lw-10)+'" y="'+(y+rowH/2+4)+'" text-anchor="end" font-size="12">'+esc(trunc(label,lw-14))+'</text>'+
+      bar(lw,y+5,bl,rowH-10,4,dim?'var(--bar-dim)':col)+
+      '<text x="'+(lw+bl+6)+'" y="'+(y+rowH/2+4)+'" font-size="12" font-weight="600" style="fill:var(--ink)">'+m.f(v)+'</text></g>';
+  });
+  s+='</svg>'+(extra?'<div class="note">'+extra+' categorías más fuera del gráfico.</div>':'');
+  el.innerHTML=s;
+  bindTips(el,i=>aggTip(items[+i].k,items[+i],tot));
+  el.querySelectorAll('.hit').forEach(g=>g.addEventListener('click',()=>{ hideTip(); toggleVal(key,g.dataset.k); }));
+}
+// Columnas para categorías ordenadas
+function vbar(el,rows,key,order,opt){
+  opt=opt||{}; const tot=agg(rows), m=MEAS[state.meas];
+  const map=new Map(groupBy(rows,r=>r[key]).map(a=>[a.k,a]));
+  const items=order.map(k=>map.get(k)||{k,n:0,saldo:0,costo:0,dev:0,cgr:0});
+  const w=W(el), h=opt.h||210, top=20, bot=opt.bot||36, n=items.length, gap=Math.max(4,Math.min(16,w/n*.22)), cw=(w-gap*(n-1))/n;
+  const max=Math.max(...items.map(m.v))||1, sel=state[key]||[];
+  let s='<svg width="'+w+'" height="'+h+'" role="img" aria-label="'+esc(opt.aria||key)+'">';
+  s+='<line x1="0" x2="'+w+'" y1="'+(h-bot)+'" y2="'+(h-bot)+'" stroke="var(--line)"/>';
+  items.forEach((a,i)=>{
+    const x=i*(cw+gap), v=m.v(a), bh=(h-top-bot)*v/max, dim=sel.length&&sel.indexOf(a.k)<0;
+    const lab=opt.lab?opt.lab(a.k):a.k, parts=lab.split('|');
+    const fill = opt.colorFn? opt.colorFn(a.k) : 'var(--bar)';
+    s+='<g class="hit" data-tip="'+i+'" data-k="'+esc(a.k)+'"><rect class="bk" x="'+x+'" y="0" width="'+cw+'" height="'+h+'" fill="transparent" rx="4"/>'+
+      vbarP(x+cw*.12,h-bot-bh,cw*.76,bh,4,dim?'var(--bar-dim)':fill)+
+      '<text x="'+(x+cw/2)+'" y="'+(h-bot-bh-6)+'" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:var(--ink)">'+m.f(v)+'</text>'+
+      parts.map((p,j)=>'<text x="'+(x+cw/2)+'" y="'+(h-bot+15+j*13)+'" text-anchor="middle" font-size="11">'+esc(trunc(p,cw+6,5.8))+'</text>').join('')+'</g>';
+  });
+  el.innerHTML=s+'</svg>';
+  bindTips(el,i=>aggTip(items[+i].k,items[+i],tot));
+  el.querySelectorAll('.hit').forEach(g=>g.addEventListener('click',()=>{ hideTip(); toggleVal(key,g.dataset.k); }));
+}
+
+/* ---- KPI ---- */
+function renderKPI(){
+  const a=agg(FILT), all=DATA.length, med=(()=>{ const v=FILT.map(r=>r.mdev).sort((x,y)=>x-y); return v.length? v[Math.floor((v.length-1)/2)] : 0; })();
+  const k=(l,v,s)=>'<div class="kpi"><div class="kl">'+l+'</div><div class="kv">'+v+'</div><div class="ks">'+s+'</div></div>';
+  $('kpis').innerHTML=
+    k('Inversiones paralizadas',fN(a.n),a.n===all?'Total de la base':fP(100*a.n/all)+' de '+fN(all))+
+    k('Saldo por ejecutar',fMs(a.saldo)+'<small>S/ mill.</small>','Recursos comprometidos sin ejecutar')+
+    k('Costo actualizado',fMs(a.costo)+'<small>S/ mill.</small>','Devengado: '+fMs(a.dev)+' mill. ('+fP(a.costo?100*a.dev/a.costo:0)+')')+
+    k('Con obra paralizada CGR',fN(a.cgr),'<i class="dot" style="background:var(--cgr)"></i>'+fP(a.n?100*a.cgr/a.n:0)+' de las inversiones')+
+    k('Meses sin devengar',fN(med)+'<small>mediana</small>',fN(FILT.filter(r=>r.mdev>60).length)+' con más de 5 años');
+}
+
+/* ---- Panorama: dos lentes ---- */
+function renderLens(){
+  const a=agg(FILT), c=agg(FILT.filter(r=>r.fCGR)), e=agg(FILT.filter(r=>r.fENT)), b=agg(FILT.filter(r=>r.fBM));
+  const both=FILT.filter(r=>r.fCGR&&r.fENT).length;
+  const pc=a.n?100*c.n/a.n:0, ps=a.saldo?100*c.saldo/a.saldo:0;
+  const tr=(lab,p,val,color)=>'<div><div class="share-h"><span>'+lab+'</span><b>'+val+'</b></div><div class="track"><i style="width:'+Math.max(p>0?.6:0,p)+'%;background:'+color+'"></i></div></div>';
+  $('lens').innerHTML=
+   '<div class="lens-l"><div class="lens-kicker"><i class="sw" style="background:var(--mef)"></i>Lente MEF · inversión paralizada</div>'+
+     '<div class="big">'+fN(a.n)+'<small>inversiones</small></div>'+
+     '<div class="lens-t">Cumplen el criterio de paralización del MEF. Saldo por ejecutar de <b>'+fM(a.saldo)+'</b> sobre un costo actualizado de '+fM(a.costo)+'.</div>'+
+     '<div class="shares">'+tr('Declarada paralizada por la entidad',a.n?100*e.n/a.n:0,fN(e.n)+' · '+fP(a.n?100*e.n/a.n:0),'var(--ent)')+
+       tr('En base MEF (BD 1138 o estado paralizado)',a.n?100*b.n/a.n:0,fN(b.n)+' · '+fP(a.n?100*b.n/a.n:0),'var(--bmef)')+'</div></div>'+
+   '<div class="lens-r"><div class="lens-kicker"><i class="sw" style="background:var(--cgr)"></i>Lente Contraloría · obra paralizada</div>'+
+     '<div class="big">'+fN(c.n)+'<small>inversiones con al menos una obra paralizada</small></div>'+
+     '<div class="lens-t">Son el '+fP(pc)+' de las inversiones, pero concentran el <b>'+fP(ps)+' del saldo</b> ('+fM(c.saldo)+'): las obras que la CGR reporta suelen estar en inversiones de mayor tamaño. En '+fN(both)+' de ellas la entidad también declara la paralización.</div>'+
+     '<div class="shares">'+
+       tr('Participación en número de inversiones',pc,fP(pc),'var(--cgr)')+
+       tr('Participación en saldo por ejecutar',ps,fP(ps),'var(--cgr)')+
+       tr('Participación en costo actualizado',a.costo?100*c.costo/a.costo:0,fP(a.costo?100*c.costo/a.costo:0),'var(--cgr)')+
+     '</div></div>';
+}
+
+/* ---- Esquema inversión / obras ---- */
+function renderConcept(){
+  const el=$('concept');
+  const box=(x,y,w,h,stroke,fill)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.5"/>';
+  const T=(x,y,t,o)=>'<text x="'+x+'" y="'+y+'" font-size="'+(o&&o.fs||12)+'" '+(o&&o.b?'font-weight="650"':'')+' '+(o&&o.a?'text-anchor="'+o.a+'"':'')+' style="fill:'+(o&&o.c||'var(--ink2)')+'">'+esc(t)+'</text>';
+  let s='<svg viewBox="0 0 700 300" width="100%" role="img" aria-label="Una inversión (CUI) agrupa varias obras o componentes; basta una obra paralizada para que la CGR la reporte">';
+  s+=box(8,92,210,116,'var(--mef)','var(--surface2)');
+  s+=T(22,116,'INVERSIÓN · CUI',{fs:10.5,b:1,c:'var(--mef)'});
+  s+=T(22,138,'Mejoramiento del servicio',{fs:13,b:1,c:'var(--ink)'});
+  s+=T(22,155,'de transitabilidad urbana',{fs:13,b:1,c:'var(--ink)'});
+  s+=T(22,180,'Unidad que sigue el MEF',{fs:11.5});
+  s+=T(22,196,'(Banco de Inversiones, SIAF)',{fs:11.5});
+  const comps=[
+    {y:14,t:'Obra 1 · Pistas y veredas',st:'Paralizada',c:'var(--cgr)',n:'Figura en el Anexo 1 de la CGR'},
+    {y:112,t:'Obra 2 · Drenaje pluvial',st:'En ejecución',c:'var(--muted)',n:'Contrato vigente'},
+    {y:210,t:'Componente 3 · Equipamiento',st:'No es obra',c:'var(--muted)',n:'Adquisición de bienes'}
+  ];
+  comps.forEach(o=>{
+    const cy=o.y+38;
+    s+='<path d="M218,150 C300,150 300,'+cy+' 380,'+cy+'" fill="none" stroke="'+(o.st==='Paralizada'?'var(--cgr)':'var(--line)')+'" stroke-width="'+(o.st==='Paralizada'?2:1.5)+'"/>';
+    s+=box(380,o.y,312,76,o.st==='Paralizada'?'var(--cgr)':'var(--line)','var(--surface)');
+    s+=T(394,o.y+24,o.t,{fs:12.5,b:1,c:'var(--ink)'});
+    s+='<rect x="394" y="'+(o.y+36)+'" width="'+(o.st.length*6.6+18)+'" height="20" rx="10" fill="none" stroke="'+o.c+'"/>';
+    s+=T(394+(o.st.length*6.6+18)/2,o.y+50,o.st,{fs:11,b:1,a:'middle',c:o.c});
+    s+=T(394+(o.st.length*6.6+18)+10,o.y+50,o.n,{fs:11.5});
+  });
+  s+='</svg>';
+  s+='<div class="legend" style="margin-top:8px"><span><i class="sw" style="background:var(--mef)"></i>MEF: la inversión entera cumple o no el criterio de paralización</span><span><i class="sw" style="background:var(--cgr)"></i>CGR: basta una obra paralizada para que la inversión aparezca en su reporte</span></div>';
+  el.innerHTML=s;
+}
+
+/* ---- UpSet: combinaciones de fuentes ---- */
+const SETS=[{k:'fCGR',l:'Contraloría',c:'var(--cgr)',f:'lCGR'},{k:'fENT',l:'Entidad',c:'var(--ent)',f:'lENT'},{k:'fBM',l:'Base MEF',c:'var(--bmef)',f:'lBM'}];
+function renderUpset(){
+  const el=$('cUpset'), tot=agg(FILT), m=MEAS[state.meas];
+  const combos=new Map();
+  FILT.forEach(r=>{ const key=SETS.map(s=>r[s.k]?1:0).join(''); let a=combos.get(key); if(!a){a={k:key,n:0,saldo:0,costo:0,dev:0,cgr:0};combos.set(key,a);} a.n++;a.saldo+=r.saldo;a.costo+=r.costo;a.dev+=r.dev;if(r.fCGR)a.cgr++; });
+  const all=['100','010','001','110','101','011','111','000'].map(k=>combos.get(k)||{k,n:0,saldo:0,costo:0,dev:0,cgr:0});
+  const w=W(el), lw=Math.min(170,w*.26), n=all.length, cw=(w-lw)/n, top=22, bh=150, mh=3*24, h=top+bh+10+mh+22;
+  const max=Math.max(...all.filter(a=>a.k!=='000').map(m.v))||1;
+  let s='<svg width="'+w+'" height="'+h+'" role="img" aria-label="Combinaciones de fuentes que reportan la paralización">';
+  // tamaños por fuente
+  SETS.forEach((st,i)=>{ const y=top+bh+10+i*24; const v=m.v(agg(FILT.filter(r=>r[st.k])));
+    s+='<text x="0" y="'+(y+15)+'" font-size="12" font-weight="600" style="fill:var(--ink)">'+st.l+'</text>'+(w>=560?'<text x="'+(lw-12)+'" y="'+(y+15)+'" text-anchor="end" font-size="11.5">'+m.f(v)+'</text>':'');
+    s+='<rect x="'+lw+'" y="'+(y+2)+'" width="'+(w-lw)+'" height="20" fill="'+(i%2?'transparent':'var(--surface2)')+'"/>'; });
+  s+='<text x="0" y="'+(top+10)+'" font-size="11" style="fill:var(--muted)">'+esc(m.t)+'</text>';
+  s+='<text x="0" y="'+(top+26)+'" font-size="11" style="fill:var(--muted)">por combinación</text>';
+  s+='<line x1="'+lw+'" x2="'+w+'" y1="'+(top+bh)+'" y2="'+(top+bh)+'" stroke="var(--line)"/>';
+  all.forEach((a,i)=>{
+    const x=lw+i*cw, v=m.v(a), none=a.k==='000';
+    // "Solo MEF" domina en tamaño: va en su propia escala para no aplastar las combinaciones
+    const barH = v<=0 ? 0 : none ? bh*.98 : Math.max(2,bh*.82*v/max);
+    const bars = a.k.split('').map((b,j)=>b==='1'?j:-1).filter(j=>j>=0);
+    const fill = none ? 'var(--mef)' : (bars.length===1? SETS[bars[0]].c : 'var(--ink2)');
+    const bwid=Math.min(46,cw*.5);
+    s+='<g class="hit" data-tip="'+i+'" data-k="'+a.k+'"><rect class="bk" x="'+x+'" y="0" width="'+cw+'" height="'+h+'" fill="transparent" rx="4"/>';
+    if(none) s+='<line x1="'+(x+2)+'" x2="'+(x+2)+'" y1="'+top+'" y2="'+(top+bh)+'" stroke="var(--line)" stroke-dasharray="3 3"/>';
+    s+=vbarP(x+(cw-bwid)/2, top+bh-barH, bwid, barH, 4, fill);
+    s+='<text x="'+(x+cw/2)+'" y="'+(none? top-6 : top+bh-barH-6)+'" text-anchor="middle" font-size="12" font-weight="650" style="fill:var(--ink)">'+m.f(v)+'</text>';
+    SETS.forEach((st,j)=>{ const cy=top+bh+10+j*24+12, on=a.k[j]==='1';
+      s+='<circle cx="'+(x+cw/2)+'" cy="'+cy+'" r="6.5" fill="'+(on?st.c:'var(--line)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
+    if(bars.length>1){ const y1=top+bh+10+bars[0]*24+12, y2=top+bh+10+bars[bars.length-1]*24+12;
+      s+='<line x1="'+(x+cw/2)+'" x2="'+(x+cw/2)+'" y1="'+y1+'" y2="'+y2+'" stroke="var(--ink2)" stroke-width="2.5"/>';
+      bars.forEach(j=>{ const cy=top+bh+10+j*24+12; s+='<circle cx="'+(x+cw/2)+'" cy="'+cy+'" r="6.5" fill="'+SETS[j].c+'" stroke="var(--surface)" stroke-width="2"/>'; }); }
+    if(none) s+='<text x="'+(x+cw/2)+'" y="'+(top+bh+10+3*24+4)+'" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">solo MEF</text><text x="'+(x+cw/2)+'" y="'+(top+bh+10+3*24+17)+'" text-anchor="middle" font-size="10.5" style="fill:var(--muted)">(escala propia)</text>';
+    s+='</g>';
+  });
+  el.innerHTML=s+'</svg>';
+  const name=k=>k==='000'?'Solo criterio MEF (ninguna otra fuente)':SETS.filter((s,j)=>k[j]==='1').map(s=>s.l).join(' + ')+(k.split('1').length===2?' (única fuente adicional)':'');
+  bindTips(el,i=>aggTip(name(all[+i].k),all[+i],tot));
+  el.querySelectorAll('.hit').forEach(g=>g.addEventListener('click',()=>{ hideTip();
+    const k=g.dataset.k; SETS.forEach((st,j)=>{ state[st.f]=[k[j]==='1'?'Sí':'No']; }); update(); }));
+}
+function renderCob(){
+  const lv=['Gobierno Nacional','Gobierno Regional','Gobierno Local'];
+  const g=new Map(groupBy(FILT,r=>r.nivL).map(a=>[a.k,a]));
+  let h='<table><thead><tr><th>Nivel</th><th class="r">Inversiones</th><th class="r">Contraloría</th><th class="r">Entidad</th><th class="r">Base MEF</th></tr></thead><tbody>';
+  const cell=(rows,k,c)=>{ const n=rows.filter(r=>r[k]).length, p=rows.length?100*n/rows.length:0;
+    return '<td class="r"><span class="minibar" style="width:'+Math.max(p>0?2:0,p*.6)+'px;background:'+c+'"></span>'+fP(p)+'<div class="note" style="font-size:11px">'+fN(n)+'</div></td>'; };
+  lv.concat([...g.keys()].filter(k=>lv.indexOf(k)<0)).forEach(k=>{ const a=g.get(k); if(!a) return;
+    h+='<tr><td>'+esc(k)+'</td><td class="r">'+fN(a.n)+'</td>'+cell(a.rows,'fCGR','var(--cgr)')+cell(a.rows,'fENT','var(--ent)')+cell(a.rows,'fBM','var(--bmef)')+'</tr>'; });
+  h+='<tr><td><b>Total</b></td><td class="r"><b>'+fN(FILT.length)+'</b></td>'+cell(FILT,'fCGR','var(--cgr)')+cell(FILT,'fENT','var(--ent)')+cell(FILT,'fBM','var(--bmef)')+'</tr>';
+  $('tCob').innerHTML=h+'</tbody></table>';
+}
+
+/* ---- Mapa ---- */
+function renderMap(){
+  const el=$('cMap'), m=MEAS[state.meas], tot=agg(FILT);
+  const g=new Map(groupBy(FILT,r=>r.dep).map(a=>[a.k,a]));
+  const val=a=> !a?0 : state.mapm==='cgr' ? (a.n?100*a.cgr/a.n:0) : m.v(a);
+  const fmt=v=> state.mapm==='cgr' ? fP(v) : m.f(v);
+  const vals=Object.keys(GEO.p).map(k=>val(g.get(k))).filter(v=>v>0);
+  const max=Math.max(...vals,0)||1;
+  const c0=cssv('--seq0'), c1=cssv('--seq1'), nod=cssv('--nodata'), sel=state.dep;
+  const w=Math.min(W(el),460), sc=w/GEO.w, h=GEO.h*sc+44;
+  let s='<svg width="'+w+'" height="'+h+'" role="img" aria-label="Mapa de departamentos"><g transform="scale('+sc+')">';
+  const keys=Object.keys(GEO.p);
+  keys.forEach(k=>{ const a=g.get(k), v=val(a); const t=Math.sqrt(v/max);
+    const f = (!a||!a.n) ? nod : mix(c0,c1,.08+.92*t);
+    const on=sel.length&&sel.indexOf(k)>=0;
+    s+='<path class="hit dep" data-tip="'+esc(k)+'" data-k="'+esc(k)+'" d="'+GEO.p[k]+'" fill="'+f+'" stroke="'+(on?'var(--accent)':'var(--surface)')+'" stroke-width="'+((on?2.4:.9)/sc)+'" style="opacity:'+(sel.length&&!on?.55:1)+'"/>';
+  });
+  s+='</g>';
+  const ly=GEO.h*sc+14, lw=Math.min(200,w-20);
+  s+='<defs><linearGradient id="lg"><stop offset="0" stop-color="'+mix(c0,c1,.08)+'"/><stop offset="1" stop-color="'+c1+'"/></linearGradient></defs>';
+  s+='<rect x="0" y="'+ly+'" width="'+lw+'" height="9" rx="2" fill="url(#lg)"/><text x="0" y="'+(ly+24)+'" font-size="11">'+fmt(0)+'</text><text x="'+lw+'" y="'+(ly+24)+'" font-size="11" text-anchor="end">'+fmt(max)+'</text>';
+  s+='<rect x="'+(lw+16)+'" y="'+ly+'" width="12" height="9" rx="2" fill="'+nod+'"/><text x="'+(lw+32)+'" y="'+(ly+9)+'" font-size="11">Sin inversiones</text>';
+  el.innerHTML=s+'</svg>';
+  bindTips(el,k=>{ const a=g.get(k); if(!a) return '<div class="tt">'+esc(k)+'</div>Sin inversiones con estos filtros';
+    return aggTip(k,a,tot)+'<br>% con obra CGR: <b>'+fP(a.n?100*a.cgr/a.n:0)+'</b>'; });
+  el.querySelectorAll('.dep').forEach(p=>p.addEventListener('click',()=>{ hideTip(); toggleVal('dep',p.dataset.k); }));
+}
+function renderDepTable(){
+  const m=MEAS[state.meas], items=groupBy(FILT,r=>r.dep);
+  const key = state.mapm==='cgr' ? (a=>a.n?a.cgr/a.n:0) : m.v;
+  items.sort((a,b)=>key(b)-key(a));
+  const mx=Math.max(...items.map(m.v),1);
+  let h='<table><thead><tr><th>#</th><th>Departamento</th><th class="r">Inversiones</th><th class="r">Saldo (S/ mill.)</th><th class="r">Costo (S/ mill.)</th><th class="r">% con obra CGR</th><th class="r">Mediana meses s/dev.</th></tr></thead><tbody>';
+  items.forEach((a,i)=>{ const md=a.rows.map(r=>r.mdev).sort((x,y)=>x-y), med=md[Math.floor((md.length-1)/2)];
+    const on=state.dep.indexOf(a.k)>=0;
+    h+='<tr class="row" data-k="'+esc(a.k)+'"'+(on?' style="font-weight:600"':'')+'><td class="r" style="color:var(--muted)">'+(i+1)+'</td><td>'+esc(a.k)+'</td><td class="r">'+fN(a.n)+'</td><td class="r"><span class="minibar" style="width:'+Math.round(46*m.v(a)/mx)+'px"></span>'+fMs(a.saldo)+'</td><td class="r">'+fMs(a.costo)+'</td><td class="r">'+fP(a.n?100*a.cgr/a.n:0)+'</td><td class="r">'+fN(med)+'</td></tr>'; });
+  $('tDep').innerHTML=h+'</tbody></table>';
+  $('tDep').querySelectorAll('tr.row').forEach(tr=>tr.addEventListener('click',()=>toggleVal('dep',tr.dataset.k)));
+}
+
+/* ---- Mapa de calor ---- */
+function renderHeat(){
+  const el=$('cHeat'), m=MEAS[state.meas], tot=agg(FILT);
+  const rowsO=ORD.rfis.slice(0,5).reverse().concat(['Sin dato válido']), colsO=ORD.rdev;
+  const cell=new Map(); FILT.forEach(r=>{ const k=r.rfis+'|'+r.rdev; let a=cell.get(k); if(!a){a={n:0,saldo:0,costo:0,dev:0,cgr:0};cell.set(k,a);} a.n++;a.saldo+=r.saldo;a.costo+=r.costo;a.dev+=r.dev;if(r.fCGR)a.cgr++; });
+  const get=(r,c)=>cell.get(r+'|'+c)||{n:0,saldo:0,costo:0,dev:0,cgr:0};
+  let max=0; rowsO.forEach(r=>colsO.forEach(c=>{max=Math.max(max,m.v(get(r,c)));})); max=max||1;
+  const w=W(el), lw=Math.min(120,w*.22), tw=Math.min(90,w*.15), cw=(w-lw-tw)/colsO.length, ch=44, top=42, h=top+rowsO.length*ch+34;
+  const c0=cssv('--seq0'), c1=cssv('--seq1'), nod=cssv('--nodata');
+  const selR=state.rfis, selC=state.rdev;
+  let s='<svg width="'+w+'" height="'+h+'" role="img" aria-label="Mapa de calor de avance físico por meses sin devengar">';
+  s+='<text x="'+(lw)+'" y="12" font-size="11" style="fill:var(--muted)">Meses sin devengar →</text><text x="0" y="12" font-size="11" style="fill:var(--muted)">Avance físico</text>';
+  colsO.forEach((c,j)=>{ s+='<text x="'+(lw+j*cw+cw/2)+'" y="'+(top-6)+'" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:var(--ink2)">'+esc(trunc(c,cw,6))+'</text>'; });
+  s+='<text x="'+(w-4)+'" y="'+(top-6)+'" text-anchor="end" font-size="11.5" font-weight="600" style="fill:var(--ink2)">Total</text>';
+  rowsO.forEach((r,i)=>{ const y=top+i*ch;
+    if(r==='80% a 100%') s+='<rect x="0" y="'+(y+1)+'" width="'+(w)+'" height="'+(ch-2)+'" rx="6" fill="none" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    s+='<text x="'+(lw-10)+'" y="'+(y+ch/2+4)+'" text-anchor="end" font-size="12" '+(r==='80% a 100%'?'font-weight="650" style="fill:var(--ink)"':'')+'>'+esc(r)+'</text>';
+    let rt={n:0,saldo:0,costo:0};
+    colsO.forEach((c,j)=>{ const a=get(r,c), v=m.v(a); rt.n+=a.n;rt.saldo+=a.saldo;rt.costo+=a.costo;
+      const f= a.n? mix(c0,c1,.05+.95*(v/max)) : nod;
+      const dark = a.n && lum(f)<.28;
+      const dim=(selR.length&&selR.indexOf(r)<0)||(selC.length&&selC.indexOf(c)<0);
+      s+='<g class="hit" data-tip="'+i+'_'+j+'" data-r="'+esc(r)+'" data-c="'+esc(c)+'"><rect x="'+(lw+j*cw+1)+'" y="'+(y+3)+'" width="'+(cw-2)+'" height="'+(ch-6)+'" rx="4" fill="'+f+'" style="opacity:'+(dim?.4:1)+'"/>'+
+        '<text x="'+(lw+j*cw+cw/2)+'" y="'+(y+ch/2+4)+'" text-anchor="middle" font-size="12" font-weight="600" style="fill:'+(dark?'#ffffff':'var(--ink)')+'">'+(a.n?m.f(v):'–')+'</text></g>';
+    });
+    s+='<text x="'+(w-4)+'" y="'+(y+ch/2+4)+'" text-anchor="end" font-size="12" font-weight="650" style="fill:var(--ink)">'+m.f(m.v(rt))+'</text>';
+  });
+  s+='<text x="0" y="'+(h-8)+'" font-size="11" style="fill:var(--crit)">- - -  Última milla: avance físico de 80% a 100%</text>';
+  el.innerHTML=s+'</svg>';
+  bindTips(el,t=>{ const [i,j]=t.split('_').map(Number), a=get(rowsO[i],colsO[j]); return aggTip('Avance físico '+rowsO[i]+' · '+colsO[j],a,tot); });
+  el.querySelectorAll('.hit').forEach(g=>g.addEventListener('click',()=>{ hideTip();
+    const r=g.dataset.r, c=g.dataset.c;
+    const same=state.rfis.length===1&&state.rfis[0]===r&&state.rdev.length===1&&state.rdev[0]===c;
+    state.rfis= same?[]:[r]; state.rdev= same?[]:[c]; update(); }));
+}
+
+/* ---- Detalle ---- */
+const DCOLS=[
+ {k:'cui',t:'CUI'},{k:'nom',t:'Inversión'},{k:'nivL',t:'Nivel'},{k:'dep',t:'Departamento'},{k:'pli',t:'Pliego'},
+ {k:'costo',t:'Costo (S/)',r:1},{k:'saldo',t:'Saldo (S/)',r:1},{k:'afin',t:'Av. fin.',r:1},{k:'afisV',t:'Av. fís.',r:1},{k:'mdev',t:'Meses s/dev.',r:1},{k:'conf',t:'Otras fuentes'}
+];
+let openRow=null;
+function renderDet(){
+  const rows=FILT.slice(), sk=state.sort.k, d=state.sort.d;
+  rows.sort((a,b)=>{ let x=a[sk],y=b[sk]; if(x==null) x=-1; if(y==null) y=-1; return (typeof x==='string'? x.localeCompare(y,'es') : x-y)*d; });
+  const ps=25, pages=Math.max(1,Math.ceil(rows.length/ps)); if(state.page>=pages) state.page=pages-1;
+  const pg=rows.slice(state.page*ps,(state.page+1)*ps);
+  $('detTitle').textContent=fN(rows.length)+' inversiones';
+  let h='<table><thead><tr>'+DCOLS.map(c=>'<th class="sort'+(c.r?' r':'')+'" data-k="'+c.k+'" aria-sort="'+(sk===c.k?(d>0?'ascending':'descending'):'none')+'">'+c.t+(sk===c.k?'<span class="ar">'+(d>0?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr></thead><tbody>';
+  const NS={'Gobierno Nacional':'GN','Gobierno Regional':'GR','Gobierno Local':'GL'};
+  pg.forEach(r=>{
+    const badges=(r.fCGR?'<span class="badge b-cgr">CGR</span>':'')+(r.fENT?'<span class="badge b-ent">Entidad</span>':'')+(r.fBM?'<span class="badge b-bmef">Base MEF</span>':'')||'<span style="color:var(--muted)">—</span>';
+    h+='<tr class="row" data-c="'+esc(r.cui)+'"><td class="mono">'+esc(r.cui)+'</td><td><div class="nm" title="'+esc(r.nom)+'">'+esc(r.nom)+'</div></td><td><span class="badge b-niv">'+(NS[r.nivL]||'—')+'</span></td><td>'+esc(r.dep)+'</td><td><div class="nm" style="max-width:28ch">'+esc(r.pli)+'</div></td>'+
+      '<td class="r">'+fN(r.costo)+'</td><td class="r"><b>'+fN(r.saldo)+'</b></td><td class="r">'+fP(r.afin)+'</td><td class="r">'+(r.afisV==null?'<span style="color:var(--muted)">s/d</span>':fP(r.afisV))+'</td><td class="r"><span class="age'+(r.mdev>60?' hot':'')+'">'+r.mdev+'</span></td><td>'+badges+'</td></tr>';
+    if(openRow===r.cui){
+      h+='<tr class="det"><td colspan="'+DCOLS.length+'"><div class="det-g">'+
+        [['Ubicación',r.dep+' / '+r.prov+' / '+r.dist],['Unidad ejecutora (UEI)',r.uei],['Sector',r.sec],['Función',r.fun],['Tipo · marco',r.tip+' · '+r.mar],['Modalidad',txt(r.mod)||'Sin dato'],
+         ['Devengado acumulado','S/ '+fN(r.dev)],['Último devengado',r.udev||'Sin dato'],['Laudos · fianzas','S/ '+fN(r.lau)+' · S/ '+fN(r.fia)],
+         ['Registro obra paralizada (BI)',r.lROP],['Base MEF 1138 · estado paralizado',r.l1138+' · '+r.lEST],['Alcance D.S. 124',r.ds],
+         ['Situación general F12B',r.sit],['Problema principal',r.prob],['Acción propuesta',r.acc]]
+        .map(x=>'<div><span>'+x[0]+'</span>'+esc(x[1])+'</div>').join('')+'</div>'+
+        (r.txt?'<div class="quote"><span class="note">Última situación declarada'+(r.fsit?' ('+esc(r.fsit)+')':'')+':</span><br>'+esc(r.txt)+'</div>':'')+'</td></tr>';
+    }
+  });
+  if(!pg.length) h+='<tr><td colspan="'+DCOLS.length+'" class="empty">Sin inversiones con estos filtros</td></tr>';
+  $('tDet').innerHTML=h+'</tbody></table>';
+  $('tDet').querySelectorAll('th.sort').forEach(th=>th.addEventListener('click',()=>{ const k=th.dataset.k; state.sort= state.sort.k===k?{k,d:-state.sort.d}:{k,d:(k==='cui'||k==='nom'||k==='dep'||k==='pli'||k==='nivL')?1:-1}; state.page=0; renderDet(); }));
+  $('tDet').querySelectorAll('tr.row').forEach(tr=>tr.addEventListener('click',()=>{ openRow= openRow===tr.dataset.c?null:tr.dataset.c; renderDet(); }));
+  $('pager').innerHTML='<span>Página '+(state.page+1)+' de '+fN(pages)+' · clic en una fila para ver el detalle</span><span style="display:flex;gap:6px"><button class="btn" id="pgP" type="button"'+(state.page?'':' disabled')+'>Anterior</button><button class="btn" id="pgN" type="button"'+(state.page<pages-1?'':' disabled')+'>Siguiente</button></span>';
+  $('pgP').onclick=()=>{state.page--;renderDet();}; $('pgN').onclick=()=>{state.page++;renderDet();};
+}
+function csv(){
+  const H=['CUI','Inversión','Nivel','Departamento','Provincia','Distrito','Pliego','UEI','Función','Tipo','Costo actualizado','Devengado acumulado','Saldo por ejecutar','Avance financiero %','Avance físico %','Meses sin devengar','Último devengado','Obra paralizada CGR','Declarada por entidad','Base MEF','Situación F12B','Problema F12B','Acción F12B'];
+  const q=v=>{ v=v==null?'':''+v; return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const L=[H.join(';')];
+  FILT.forEach(r=>L.push([r.cui,r.nom,r.nivL,r.dep,r.prov,r.dist,r.pli,r.uei,r.fun,r.tip,r.costo.toFixed(2),r.dev.toFixed(2),r.saldo.toFixed(2),r.afin.toFixed(2),r.afisV==null?'':r.afisV,r.mdev,r.udev,r.lCGR,r.lENT,r.lBM,r.sit,r.prob,r.acc].map(q).join(';')));
+  return L.join('\n');
+}
+let DL=null;
+try{ if(window.claude&&window.claude.use) window.claude.use('downloads').then(d=>{DL=d;}).catch(()=>{}); }catch(e){}
+$('btnCsv').addEventListener('click',async()=>{
+  const data='\ufeff'+csv(), n=fN(FILT.length);
+  if(DL){
+    try{ await DL.save({filename:'inversiones_paralizadas.csv',data}); flash('CSV guardado: '+n+' inversiones.'); return; }
+    catch(e){ if(e&&e.code==='declined') return; if(e&&e.code==='rate_limited'){ flash('Ya hay una descarga pendiente de confirmar.'); return; } }
+  }
+  if(window.self===window.top){ const u=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'})), ln=document.createElement('a'); ln.href=u; ln.download='inversiones_paralizadas.csv'; document.body.appendChild(ln); ln.click(); ln.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); flash('CSV descargado: '+n+' inversiones.'); return; }
+  try{ await navigator.clipboard.writeText(data); flash('CSV de '+n+' inversiones copiado al portapapeles. Péguelo en Excel.'); }
+  catch(e){ flash('No se pudo exportar desde esta vista.'); }
+});
+function flash(t){ const m=$('msg'); m.textContent=t; m.hidden=false; clearTimeout(flash._t); flash._t=setTimeout(()=>m.hidden=true,6000); }
+
+/* ================= Orquestación ================= */
+function renderTab(){
+  const t=state.tab;
+  if(t==='pan'){ renderLens(); vbar($('cNiv'),FILT,'nivL',ORD.nivL.slice(0,3),{lab:k=>k.replace('Gobierno ','Gobierno|')}); vbar($('cDev'),FILT,'rdev',ORD.rdev,{lab:k=>k.replace(' meses','|meses').replace('Más de 60','> 60')}); vbar($('cSal'),FILT,'rsal',ORD.rsal,{lab:k=>k.replace('Hasta S/ 100 mil','≤ 100|mil').replace('S/ 100 mil a 400 mil','100–400|mil').replace('S/ 400 mil a 1 mill.','400 mil–|1 mill.').replace('S/ 1 a 10 mill.','1–10|mill.').replace('S/ 10 a 100 mill.','10–100|mill.').replace('Más de S/ 100 mill.','> 100|mill.')}); hbar($('cFun'),FILT,'fun',{top:14,lab:cap1,lw:300}); }
+  if(t==='mc'){ renderUpset(); vbar($('cConf'),FILT,'confL',ORD.confL,{lab:k=>k.replace('Solo criterio MEF','Solo|criterio MEF').replace(' fuente adicional','|fuente adic.').replace(' fuentes adicionales','|fuentes adic.'),colorFn:k=>k==='Solo criterio MEF'?'var(--mef)':'var(--ink2)'}); renderCob(); }
+  if(t==='ter'){ renderMap(); renderDepTable(); hbar($('cPli'),FILT,'pli',{top:15,lw:360,lwr:.45}); }
+  if(t==='av'){ renderHeat(); vbar($('cFin'),FILT,'rfin',ORD.rfin,{lab:k=>k.replace(' a ','–').replace('%','')}); hbar($('cTip'),FILT,'tip',{lwr:.45}); hbar($('cMod'),FILT,'modG',{order:['Administración directa','Por contrata','Mixta (directa y contrata)','Otras (APP, OxI, núcleo ejecutor, etc.)','Sin dato']}); renderEsc(); }
+  if(t==='dx'){ const c=FILT.filter(r=>r.sit!=='Sin clasificar').length;
+    $('dxCov').innerHTML='<b>'+fN(c)+' de '+fN(FILT.length)+'</b> inversiones ('+fP(FILT.length?100*c/FILT.length:0)+') tienen situación clasificada en el Formato 12-B. Las demás aparecen como <b>Sin clasificar</b> al final de cada gráfico.';
+    hbar($('cSit'),FILT,'sit',{lw:440,lwr:.5}); hbar($('cProb'),FILT,'prob',{lw:300,lwr:.55}); hbar($('cAcc'),FILT,'acc',{lw:300,lwr:.55}); }
+  if(t==='det'){ renderDet(); }
+}
+function renderEsc(){
+  const el=$('cEsc'), m=MEAS[state.meas], tot=agg(FILT);
+  const items=[['e1L','Escenario 1 · avance físico ≥ 40%'],['e2L','Escenario 2 · avance físico ≥ 60%']];
+  const w=W(el); let s='';
+  items.forEach(([k,l])=>{ const yes=agg(FILT.filter(r=>r[k]==='Sí')), no=agg(FILT.filter(r=>r[k]==='No')); const vy=m.v(yes), vt=m.v(tot)||1, p=100*vy/vt;
+    s+='<div style="margin-bottom:14px"><div class="share-h"><span>'+l+'</span><b>'+m.f(vy)+' · '+fP(p)+'</b></div><div class="track" style="height:16px;cursor:pointer" data-k="'+k+'" title="Clic para filtrar"><i style="width:'+p+'%;background:var(--bar)"></i><i style="flex:1;background:var(--bar-dim)"></i></div><div class="note" style="margin-top:3px">No cumple: '+m.f(m.v(no))+'</div></div>'; });
+  el.innerHTML=s;
+  el.querySelectorAll('.track').forEach(t=>t.addEventListener('click',()=>{ const k=t.dataset.k; state[k]= (state[k].length===1&&state[k][0]==='Sí')?[]:['Sí']; update(); }));
+}
+function update(keepPop){
+  FILT=filtered(); state.page=0;
+  refreshFilters(); renderKPI(); renderTab();
+  if(!keepPop) closePop();
+}
+let rt=null; const rerender=()=>{ clearTimeout(rt); rt=setTimeout(()=>{ renderKPI(); renderTab(); },120); };
+
+/* Pestañas y controles */
+$('tabs').querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+  state.tab=b.dataset.t;
+  $('tabs').querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));
+  document.querySelectorAll('section[data-view]').forEach(s=>s.hidden=s.dataset.view!==state.tab);
+  if(state.tab==='mc') renderConcept();
+  renderTab();
+  try{ localStorage.setItem('par_tab',state.tab); }catch(e){}
+}));
+$('measSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ state.meas=b.dataset.m; $('measSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false')); renderTab(); }));
+$('mapSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ state.mapm=b.dataset.mm; $('mapSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false')); renderTab(); }));
+let qt=null; $('q').addEventListener('input',e=>{ clearTimeout(qt); qt=setTimeout(()=>{ state.q=e.target.value; update(); },220); });
+$('clearAll').addEventListener('click',()=>{ FCFG.forEach(c=>state[c[0]]=[]); state.q=''; $('q').value=''; update(); });
+const side=$('side'), scrim=$('scrim');
+function closeSide(){ side.classList.remove('open'); scrim.classList.remove('open'); }
+$('openSide').addEventListener('click',()=>{ side.classList.add('open'); scrim.classList.add('open'); });
+$('sideClose').addEventListener('click',closeSide); scrim.addEventListener('click',closeSide);
+side.addEventListener('scroll',closePop);
+window.addEventListener('resize',()=>{ closePop(); rerender(); });
+try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',rerender); }catch(e){}
+new MutationObserver(rerender).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---- Cargar Excel en el navegador (misma derivación) ---- */
+$('btnXlsx').addEventListener('click',()=>$('fileXlsx').click());
+$('fileXlsx').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  flash('Leyendo '+f.name+'…');
+  const go=()=>{ const rd=new FileReader(); rd.onload=ev=>{ try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const ws=wb.Sheets['BD_Paralizadas']||wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{defval:null});
+      if(!raw.length || !('CODIGO_UNICO' in raw[0])) { flash('El archivo no tiene la estructura esperada (hoja BD_Paralizadas con la columna CODIGO_UNICO).'); return; }
+      const rows=raw.map(o=>{ const x={}; for(const c in COLMAP){ const v=o[c]; if(v!==null&&v!==undefined&&v!=='') x[COLMAP[c]]=v; } return x; });
+      DATA.length=0; rows.forEach(r=>DATA.push(r)); deriveAll(DATA);
+      $('corte').textContent=f.name; $('nreg').textContent=fN(DATA.length);
+      update(); flash('Excel cargado: '+fN(DATA.length)+' inversiones. Los cambios solo se ven en esta pestaña.');
+    }catch(err){ flash('No se pudo leer el Excel: '+err.message); } };
+    rd.readAsArrayBuffer(f); };
+  if(window.XLSX) go(); else { const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload=go; sc.onerror=()=>flash('No se pudo cargar el lector de Excel.'); document.head.appendChild(sc); }
+  e.target.value='';
+});
+
+/* Arranque */
+$('corte').textContent=window.SEED_FECHA||'—';
+$('nreg').textContent=fN(DATA.length);
+buildFilterBox();
+try{ const t=localStorage.getItem('par_tab'); if(t&&document.querySelector('.tab[data-t="'+t+'"]')) document.querySelector('.tab[data-t="'+t+'"]').click(); }catch(e){}
+update();
+</script>
+
+</body>
+</html>
